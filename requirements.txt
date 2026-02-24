@@ -17,10 +17,10 @@ elevenlabs>=1.0.0                  # Premium TTS
 # ── Video Creation ────────────────────────────────────────────
 moviepy>=1.0.3                     # Video editing / composition
 proglog>=0.1.10                    # Progress logging for MoviePy
-Pillow>=10.0.0                     # Image generation for slides
-numpy>=1.24.0                      # Array operations for frames
-imageio>=2.31.0                    # Video I/O backend
 imageio-ffmpeg>=0.4.9              # FFmpeg bindings
+Pillow>=10.0.0                     # Image processing
+numpy>=1.24.0                      # Array processing
+matplotlib>=3.7.0                  # For color processing (optional but helpful)
 
 # ── YouTube API ───────────────────────────────────────────────
 google-api-python-client>=2.100.0  # YouTube Data API v3
