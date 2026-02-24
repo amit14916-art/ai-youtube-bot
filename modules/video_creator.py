@@ -36,6 +36,7 @@ from config.settings import (
     VIDEO_FPS,
     VIDEO_HEIGHT,
     VIDEO_WIDTH,
+    NICHE,
 )
 
 log = logging.getLogger(__name__)
@@ -113,96 +114,107 @@ def make_gradient_frame(t: float, palette_idx: int = 0) -> np.ndarray:
 # ─────────────────────────────────────────────────────────────────
 
 def render_slide_image(text: str, is_title: bool = False) -> Image.Image:
-    """Render a PIL image for a single text slide in Podcast style."""
+    """Render a PIL image for a single text slide in Premium Podcast style."""
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
     # Detect Host
+    host_color = (100, 200, 255) # Default
     host_label = ""
     if text.startswith("Host A:"):
-        host_label = "Deep Dive Host"
+        host_label = "HOST A"
         text = text.replace("Host A:", "").strip()
-        card_color = (10, 30, 60, 180) # Blueish
+        host_color = (0, 255, 255) # Cyan
     elif text.startswith("Host B:"):
-        host_label = "Tech Expert"
+        host_label = "HOST B"
         text = text.replace("Host B:", "").strip()
-        card_color = (40, 10, 50, 180) # Purplish
-    else:
-        card_color = (0, 0, 0, 160)
-
-    # Semi-transparent card
-    card_x1, card_y1 = W // 10, H // 4
-    card_x2, card_y2 = W - W // 10, H - H // 4
-    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    odraw = ImageDraw.Draw(overlay)
-    odraw.rounded_rectangle(
-        [(card_x1, card_y1), (card_x2, card_y2)],
-        radius=40,
-        fill=card_color,
-        outline=(255, 255, 255, 50),
-        width=2
-    )
-    img = Image.alpha_composite(img, overlay)
-    draw = ImageDraw.Draw(img)
-
+        host_color = (255, 100, 255) # Magenta
+    
     # Font
     try:
-        font_size = 80 if is_title else 48
-        font = ImageFont.truetype(FONT_PATH, font_size)
-        label_font = ImageFont.truetype(FONT_PATH, 36)
-        small_font = ImageFont.truetype(FONT_PATH, 32)
+        title_size = 110
+        caption_size = 75
+        label_size = 40
+        font_main = ImageFont.truetype(FONT_PATH, title_size if is_title else caption_size)
+        font_host = ImageFont.truetype(FONT_PATH, label_size)
     except Exception:
-        font = ImageFont.load_default()
-        label_font = font
-        small_font = font
+        font_main = ImageFont.load_default()
+        font_host = font_main
 
-    # Draw host label
-    if host_label:
-        draw.text((card_x1 + 50, card_y1 - 60), host_label.upper(), font=label_font, fill=(200, 200, 255, 255))
-
-    # Wrap and center text
-    max_chars = 25 if is_title else 50
-    lines = textwrap.wrap(text, width=max_chars)
-    line_height = font_size + 25
-    total_h = line_height * len(lines)
-    y = card_y1 + ( (card_y2 - card_y1) - total_h ) // 2
+    # ─── DRAW TEXT (Centered Subtitles Style) ───
+    max_width = 30 if is_title else 45
+    lines = textwrap.wrap(text, width=max_width)
+    line_h = (title_size if is_title else caption_size) + 20
+    total_h = line_h * len(lines)
+    
+    # Vertically centered
+    y = (H - total_h) // 2
 
     for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=font)
+        bbox = draw.textbbox((0, 0), line, font=font_main)
         lw = bbox[2] - bbox[0]
         x = (W - lw) // 2
-        # Shadow
-        draw.text((x + 3, y + 3), line, font=font, fill=(0, 0, 0, 200))
-        # Main text with gradient color
-        color = (255, 220, 50) if is_title else (240, 240, 255)
-        draw.text((x, y), line, font=font, fill=color)
-        y += line_height
+        
+        # Thick Glow/Shadow for readability
+        for offset in range(1, 4):
+            draw.text((x + offset, y + offset), line, font=font_main, fill=(0, 0, 0, 180))
+            draw.text((x - offset, y + offset), line, font=font_main, fill=(0, 0, 0, 180))
+            draw.text((x + offset, y - offset), line, font=font_main, fill=(0, 0, 0, 180))
+            draw.text((x - offset, y - offset), line, font=font_main, fill=(0, 0, 0, 180))
+        
+        # Main text
+        color = (255, 220, 50) if is_title else (255, 255, 255)
+        draw.text((x, y), line, font=font_main, fill=color)
+        y += line_h
 
-    # Branding bar
-    brand = "AGENTIC AI WORLD"
-    bbox = draw.textbbox((0, 0), brand, font=small_font)
-    bw = bbox[2] - bbox[0]
-    draw.text(((W - bw) // 2, H - 80), brand, font=small_font, fill=(150, 150, 200, 220))
+    # ─── DRAW HOST LABEL (Top Left) ───
+    if host_label:
+        label_text = f"● {host_label}"
+        draw.text((103, 103), label_text, font=font_host, fill=(0,0,0, 150)) # Shadow
+        draw.text((100, 100), label_text, font=font_host, fill=host_color)
 
-    return img.convert("RGB")
+    # ─── BRANDING (Bottom Right) ───
+    brand = f"@{NICHE}"
+    bbox = draw.textbbox((0, 0), brand, font=font_host)
+    draw.text((W - (bbox[2]-bbox[0]) - 100, H - 100), brand, font=font_host, fill=(255,255,255, 100))
+
+    return img.convert("RGBA")
 
 
-# ─────────────────────────────────────────────────────────────────
-#  PARTICLE OVERLAY
-# ─────────────────────────────────────────────────────────────────
+def add_vignette(frame: np.ndarray, intensity: float = 0.6) -> np.ndarray:
+    """Add a cinematic vignette effect to the frame."""
+    h, w = frame.shape[:2]
+    # Create radial gradient
+    X, Y = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h))
+    radius = np.sqrt(X**2 + Y**2)
+    # Darken edges
+    vignette = np.clip(1 - radius * intensity, 0, 1)
+    vignette = np.stack([vignette]*3, axis=-1)
+    return (frame * vignette).astype(np.uint8)
+
+def add_film_grain(frame: np.ndarray, intensity: float = 0.05) -> np.ndarray:
+    """Add subtle film grain (noise) for a professional look."""
+    noise = np.random.normal(0, 255 * intensity, frame.shape).astype(np.int16)
+    frame = frame.astype(np.int16) + noise
+    return np.clip(frame, 0, 255).astype(np.uint8)
 
 def particles_frame(t: float) -> np.ndarray:
-    """Small floating dots for visual interest."""
+    """Small floating glowing dust particles for cinematic depth."""
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    rng = np.random.RandomState(42)  # fixed seed = stable positions
-    positions = rng.rand(30, 2)
-    for px, py in positions:
-        x = int((px + 0.05 * math.sin(t * 0.5 + px * 10)) * W) % W
-        y = int((py + 0.03 * math.cos(t * 0.4 + py * 8)) * H) % H
-        r = rng.randint(2, 6)
-        alpha = int(80 + 60 * math.sin(t + px * 6))
-        draw.ellipse([(x - r, y - r), (x + r, y + r)], fill=(100, 150, 255, alpha))
+    rng = np.random.RandomState(42)
+    num_particles = 40
+    for i in range(num_particles):
+        px = rng.rand()
+        py = rng.rand()
+        speed = 0.02 + rng.rand() * 0.05
+        # Movement
+        x = int((px * W + t * 40 * speed)) % W
+        y = int((py * H - t * 30 * speed)) % H
+        size = rng.randint(2, 5)
+        # Glowing effect
+        alpha = int(100 + 50 * math.sin(t * 2 + i))
+        draw.ellipse([(x-size, y-size), (x+size, y+size)], fill=(255, 255, 255, alpha))
     return np.array(img)
 
 
@@ -227,26 +239,35 @@ def create_video(content: dict, audio_path: str, job_id: str) -> str:
     palette = hash(content["chosen_topic"]) % len(PALETTES)
 
     # 3. Build slides
+    overlay_clipper = VideoClip(particles_frame, duration=total_duration).with_fps(VIDEO_FPS)
+    
     slide_clips = []
     for i, text in enumerate(slides):
         slide_img = render_slide_image(text, is_title=(i == 0))
-        img_array = np.array(slide_img)
         
+        # ─── BACKGROUND ENGINE ───
         def make_bg(t, _p=palette, _st=i * slide_duration):
-            return make_gradient_frame(_st + t, _p)
+            frame = make_gradient_frame(_st + t, _p)
+            frame = add_vignette(frame)
+            frame = add_film_grain(frame)
+            return frame
             
         bg = VideoClip(make_bg, duration=slide_duration).with_fps(VIDEO_FPS)
-        bg = bg.with_effects([vfx.Resize((W, H))])
-
-        slide_clip = (ImageClip(img_array).with_duration(slide_duration).with_fps(VIDEO_FPS))
-        zoom_factor = lambda t: 1.0 + 0.03 * (t / slide_duration)
-        slide_clip = slide_clip.with_effects([vfx.Resize(zoom_factor)])
-
-        composite = CompositeVideoClip([bg, slide_clip.with_position("center")])
+        
+        # ─── FOREGROUND ENGINE (Captions) ───
+        txt_img = np.array(slide_img)
+        txt = ImageClip(txt_img).with_duration(slide_duration).with_fps(VIDEO_FPS)
+        # Cinematic Zoom
+        txt = txt.with_effects([vfx.Resize(lambda t: 1.0 + 0.08 * (t/slide_duration))])
+        
+        composite = CompositeVideoClip([bg, txt.with_position("center")])
         slide_clips.append(composite)
 
-    # 4. Concatenate
-    final_video = concatenate_videoclips(slide_clips, method="compose")
+    # Combine All
+    video_content = concatenate_videoclips(slide_clips, method="compose")
+    
+    # Global Particle Overlay
+    final_video = CompositeVideoClip([video_content, overlay_clipper.with_position("center")])
 
     # 5. Audio Mix
     bgm_path = os.path.join(ASSETS_DIR, "bgm.mp3")
