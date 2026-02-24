@@ -1,0 +1,194 @@
+"""
+main.py — AI Faceless YouTube Channel Automation Bot
+═══════════════════════════════════════════════════════════════
+Pipeline:
+  1. Research trending AI topics (Google Trends + YouTube)
+  2. Claude AI picks best topic + writes SEO content + script
+  3. Text-to-Speech voiceover (ElevenLabs or gTTS)
+  4. Build faceless video (animated slides + audio + BGM)
+  5. Generate eye-catching thumbnail
+  6. Upload everything to YouTube automatically
+  7. Schedule to run daily at configured time
+
+Usage:
+  python main.py              # Run once immediately
+  python main.py --schedule   # Run on schedule (daily)
+  python main.py --dry-run    # Research + generate only, skip upload
+"""
+
+import argparse
+import json
+import logging
+import os
+import sys
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import schedule
+
+from config.settings import (
+    UPLOAD_HOUR, 
+    UPLOAD_MINUTE, 
+    UPLOAD_TIMES, 
+    DAILY_UPLOADS, 
+    OUTPUT_DIR, 
+    LOG_FILE
+)
+
+
+# ─────────────────────────────────────────────────────────────────
+#  LOGGING & FFMPEG SETUP
+# ─────────────────────────────────────────────────────────────────
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
+    ],
+)
+log = logging.getLogger(__name__)
+
+# Try to find ffmpeg via imageio-ffmpeg if not in path
+try:
+    import imageio_ffmpeg
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    if ffmpeg_exe:
+        os.environ["IMAGEIO_FFMPEG_EXE"] = ffmpeg_exe
+        # Set for pydub
+        from pydub import AudioSegment
+        AudioSegment.converter = ffmpeg_exe
+        log.info(f"FFMPEG found → {ffmpeg_exe}")
+except ImportError:
+    log.warning("imageio-ffmpeg not installed, ffmpeg might not be found")
+except Exception as e:
+    log.warning(f"Error setting FFMPEG path: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────
+#  CORE PIPELINE
+# ─────────────────────────────────────────────────────────────────
+
+def run_pipeline(dry_run: bool = False) -> dict | None:
+    """
+    Execute the full content creation and upload pipeline.
+    Returns a dict with results or None on failure.
+    """
+    job_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log.info("=" * 60)
+    log.info(f"  AI YouTube Bot — Job {job_id}")
+    log.info("=" * 60)
+
+    result = {"job_id": job_id, "status": "started", "timestamp": datetime.now().isoformat()}
+
+    try:
+        # ── PHASE 1: RESEARCH ──────────────────────────────────
+        from modules.researcher import run_research
+        content = run_research()
+
+        log.info(f"\n{'─'*50}")
+        log.info(f"  TOPIC   : {content['chosen_topic']}")
+        log.info(f"  TITLE   : {content['seo_title']}")
+        log.info(f"  SCRIPT  : {len(content['script'].split())} words")
+        log.info(f"{'─'*50}\n")
+
+        # Save content to JSON for debugging/reference
+        content_file = os.path.join(OUTPUT_DIR, f"{job_id}_content.json")
+        with open(content_file, "w", encoding="utf-8") as f:
+            json.dump(content, f, indent=2, ensure_ascii=False)
+        log.info(f"Content saved → {content_file}")
+
+        # ── PHASE 2: AUDIO ─────────────────────────────────────
+        from modules.audio_generator import generate_audio
+        audio_path = generate_audio(content["script"], job_id)
+        result["audio_path"] = audio_path
+
+        # ── PHASE 3: VIDEO ─────────────────────────────────────
+        from modules.video_creator import create_video, create_thumbnail
+        video_path    = create_video(content, audio_path, job_id)
+        thumbnail_path = create_thumbnail(content, job_id)
+        result["video_path"]     = video_path
+        result["thumbnail_path"] = thumbnail_path
+
+        # ── PHASE 4: UPLOAD ─────────────────────────────────────
+        if dry_run:
+            log.info("DRY RUN — skipping YouTube upload")
+            result["status"] = "dry_run_complete"
+            log.info(f"\n✅ Dry run complete! Files saved in: {OUTPUT_DIR}/")
+        else:
+            from modules.uploader import upload_to_youtube
+            url = upload_to_youtube(content, video_path, thumbnail_path)
+            result["youtube_url"] = url
+            result["status"] = "uploaded"
+            log.info(f"\n🎉 SUCCESS! Video live at: {url}")
+
+        # Save result summary
+        summary_file = os.path.join(OUTPUT_DIR, f"{job_id}_result.json")
+        with open(summary_file, "w") as f:
+            json.dump(result, f, indent=2)
+
+        return result
+
+    except Exception as e:
+        log.exception(f"Pipeline failed: {e}")
+        result["status"] = "failed"
+        result["error"] = str(e)
+        return result
+
+
+# ─────────────────────────────────────────────────────────────────
+#  SCHEDULER
+# ─────────────────────────────────────────────────────────────────
+
+def run_scheduled():
+    """Run the pipeline once and log status."""
+    run_pipeline(dry_run=False)
+
+def start_scheduler():
+    """Start the daily scheduler with multiple upload times."""
+    log.info(f"📅 Scheduler started — will run {DAILY_UPLOADS} times daily at {UPLOAD_TIMES}")
+
+    for t in UPLOAD_TIMES:
+        schedule.every().day.at(t).do(run_scheduled)
+
+    # If you want to jumpstart with one upload now:
+    # log.info("Running initial job now…")
+    # run_scheduled()
+
+    while True:
+        schedule.run_pending()
+        time.sleep(30)
+
+
+# ─────────────────────────────────────────────────────────────────
+#  ENTRY POINT
+# ─────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="AI Faceless YouTube Channel Automation Bot"
+    )
+    parser.add_argument(
+        "--schedule",
+        action="store_true",
+        help="Run on daily schedule (keeps process alive)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Generate content and video but skip YouTube upload",
+    )
+    args = parser.parse_args()
+
+    if args.schedule:
+        start_scheduler()
+    else:
+        result = run_pipeline(dry_run=args.dry_run)
+        if result and result.get("status") in ("uploaded", "dry_run_complete"):
+            sys.exit(0)
+        else:
+            sys.exit(1)

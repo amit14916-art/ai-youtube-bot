@@ -1,0 +1,236 @@
+"""
+modules/researcher.py
+Finds trending AI topics from Google Trends + YouTube search.
+"""
+
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
+import anthropic
+import requests
+from pytrends.request import TrendReq
+
+from config.settings import (
+    ANTHROPIC_API_KEY,
+    GROQ_API_KEY,
+    GROQ_MODEL,
+    LLM_PROVIDER,
+    GOOGLE_SEARCH_API_KEY,
+    GOOGLE_SEARCH_ENGINE_ID,
+    NICHE,
+    RESEARCH_TOPICS,
+    SCRIPT_WORDS,
+    TRENDS_GEO,
+    YOUTUBE_API_KEY,
+)
+
+log = logging.getLogger(__name__)
+
+# Lazy init clients
+def get_llm_client():
+    if LLM_PROVIDER == "anthropic":
+        import anthropic
+        return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    else:
+        from groq import Groq
+        return Groq(api_key=GROQ_API_KEY)
+
+
+# ─────────────────────────────────────────────────────────────────
+#  1. GOOGLE TRENDS
+# ─────────────────────────────────────────────────────────────────
+
+def get_google_trending_topics() -> list[str]:
+    """Pull the top trending AI-related keywords from Google Trends."""
+    try:
+        pytrends = TrendReq(hl="en-US", tz=360)
+        # Seed keywords that anchor us in the AI niche
+        seeds = ["ChatGPT", "Gemini AI", "AI tools", "machine learning", "LLM"]
+        pytrends.build_payload(seeds[:5], cat=0, timeframe="now 7-d", geo=TRENDS_GEO)
+        related = pytrends.related_queries()
+
+        topics: list[str] = []
+        for seed in seeds:
+            df = related.get(seed, {}).get("top")
+            if df is not None and not df.empty:
+                topics.extend(df["query"].head(5).tolist())
+
+        # Also grab real-time trending searches
+        trending_df = pytrends.trending_searches(pn="united_states")
+        rt_trends = trending_df[0].tolist()
+        ai_rt = [t for t in rt_trends if any(
+            k in t.lower() for k in ["ai", "gpt", "llm", "gemini", "claude", "robot", "neural"]
+        )]
+        topics.extend(ai_rt[:5])
+
+        unique = list(dict.fromkeys(topics))  # preserve order, remove dupes
+        log.info(f"Google Trends → {len(unique)} topics found")
+        return unique[:RESEARCH_TOPICS * 3]
+    except Exception as e:
+        log.warning(f"Google Trends error: {e} — using fallback list")
+        return [
+            "GPT-5 release date",
+            "AI replacing jobs 2025",
+            "Google Gemini Ultra 2",
+            "Open source LLMs 2025",
+            "AI video generation tools",
+        ]
+
+
+# ─────────────────────────────────────────────────────────────────
+#  2. YOUTUBE TRENDING SEARCH
+# ─────────────────────────────────────────────────────────────────
+
+def get_youtube_trending_ai(max_results: int = 10) -> list[dict]:
+    """Query YouTube for the most-viewed recent AI videos."""
+    url = "https://www.googleapis.com/youtube/v3/search"
+    week_ago = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    params = {
+        "part": "snippet",
+        "q": f"{NICHE} trending 2025",
+        "type": "video",
+        "order": "viewCount",
+        "publishedAfter": week_ago,
+        "maxResults": max_results,
+        "key": YOUTUBE_API_KEY,
+        "relevanceLanguage": "en",
+        "videoDuration": "medium",
+    }
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        results = [
+            {
+                "title": i["snippet"]["title"],
+                "description": i["snippet"]["description"][:300],
+                "channel": i["snippet"]["channelTitle"],
+                "video_id": i["id"]["videoId"],
+            }
+            for i in items
+        ]
+        log.info(f"YouTube search → {len(results)} trending videos found")
+        return results
+    except Exception as e:
+        log.warning(f"YouTube search error: {e}")
+        return []
+
+
+# ─────────────────────────────────────────────────────────────────
+#  3. GOOGLE WEB SEARCH (for article content)
+# ─────────────────────────────────────────────────────────────────
+
+def google_search(query: str, num: int = 5) -> list[dict]:
+    """Search the web and return top result snippets."""
+    url = "https://www.googleapis.com/customsearch/v1"
+    params = {
+        "key": GOOGLE_SEARCH_API_KEY,
+        "cx": GOOGLE_SEARCH_ENGINE_ID,
+        "q": query,
+        "num": num,
+        "dateRestrict": "w1",  # last week
+    }
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+        return [{"title": i.get("title", ""), "snippet": i.get("snippet", "")} for i in items]
+    except Exception as e:
+        log.warning(f"Google Search error for '{query}': {e}")
+        return []
+
+
+# ─────────────────────────────────────────────────────────────────
+#  4. PICK BEST TOPIC + GENERATE SEO META + SCRIPT
+# ─────────────────────────────────────────────────────────────────
+
+def pick_best_topic_and_generate(
+    google_topics: list[str],
+    youtube_videos: list[dict],
+) -> dict:
+    """
+    Use Claude to:
+    - Pick the single best video topic
+    - Write SEO title, description, tags
+    - Write the full voiceover script
+    Returns a dict with all content.
+    """
+    yt_titles = "\n".join(f"- {v['title']}" for v in youtube_videos[:8])
+    gt_topics = "\n".join(f"- {t}" for t in google_topics[:15])
+
+    prompt = f"""You are an expert YouTube content strategist and lead writer for a top-tier tech podcast. Your primary goal is to provide a COMPREHENSIVE and DETAILED script that exceeds {SCRIPT_WORDS} words.
+
+TRENDING DATA:
+=== Google Trends (AI niche, last 7 days) ===
+{gt_topics}
+
+=== Top YouTube AI Videos (last 7 days by views) ===
+{yt_titles}
+
+YOUR TASKS — respond ONLY in valid JSON with these exact keys:
+
+{{
+  "chosen_topic": "The single best topic to make a video about today",
+  "reason": "One sentence why this topic has the highest viral/educational potential",
+  "seo_title": "YouTube video title, max 70 chars, keyword-rich, curiosity-driven, no clickbait",
+  "seo_description": "YouTube description 800-1000 chars. First 2 lines must hook viewers and contain main keyword. Include timestamps placeholder [TIMESTAMPS], call-to-action, hashtags at end.",
+  "tags": ["tag1","tag2",...],
+  "thumbnail_text": "Bold 3-6 word text to overlay on thumbnail",
+  "script": "Full {SCRIPT_WORDS}-word DEEP DIVE PODCAST script. Structure as an engaging conversation between two hosts (Host A and Host B). Format it like a natural discussion, diving deep into the tech, its impact, and future implications. NO stage directions, just the dialogue text labeled with Host A: and Host B:.",
+  "visual_hints": ["keyword1", "keyword2", "keyword3"]
+}}
+
+Important for SEO title: Start with the most searched keyword. Make it specific and valuable.
+Important for script: I need a VERY LONG script (AT LEAST {SCRIPT_WORDS} words). Break the conversation into 5 clear sections:
+1. The Hook & Intro (Explaining why this matters)
+2. The Deep Dive (Technical explanation/analogy)
+3. The Controversy/Challenge (Host B challenges Host A)
+4. The Future Implication (Where is this heading?)
+5. Final Summary & Call to Action.
+Each host should speak in long, detailed paragraphs. Do NOT cut it short.
+Be engaging, use human-like interruptions (like "Wait, so you're saying...", "Exactly!", "That's mind-blowing").
+"""
+
+    log.info(f"Sending research data to {LLM_PROVIDER.upper()} for topic selection + content generation…")
+    
+    client = get_llm_client()
+    
+    if LLM_PROVIDER == "anthropic":
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=4000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text
+    else:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            max_tokens=6144, # Ensure enough room for ~1200 words + JSON overhead
+        )
+        raw = response.choices[0].message.content
+
+    import json, re
+    # Extract JSON even if wrapped in markdown code block
+    match = re.search(r"\{[\s\S]+\}", raw)
+    if not match:
+        raise ValueError(f"{LLM_PROVIDER.upper()} did not return valid JSON")
+
+    data = json.loads(match.group())
+    log.info(f"Topic chosen: {data['chosen_topic']}")
+    return data
+
+
+# ─────────────────────────────────────────────────────────────────
+#  PUBLIC ENTRY POINT
+# ─────────────────────────────────────────────────────────────────
+
+def run_research() -> dict:
+    """Full research pipeline. Returns content dict."""
+    log.info("═══ Starting Research Phase ═══")
+    google_topics  = get_google_trending_topics()
+    youtube_videos = get_youtube_trending_ai()
+    content = pick_best_topic_and_generate(google_topics, youtube_videos)
+    return content
