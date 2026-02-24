@@ -12,10 +12,11 @@ requests>=2.31.0                   # HTTP client
 # ── Text-to-Speech ────────────────────────────────────────────
 gTTS>=2.5.1                        # Free Google TTS (fallback)
 pydub>=0.25.1                      # Audio processing / stitching
-# elevenlabs>=1.0.0               # Optional: premium TTS (uncomment if using)
+elevenlabs>=1.0.0                  # Premium TTS
 
 # ── Video Creation ────────────────────────────────────────────
 moviepy>=1.0.3                     # Video editing / composition
+proglog>=0.1.10                    # Progress logging for MoviePy
 Pillow>=10.0.0                     # Image generation for slides
 numpy>=1.24.0                      # Array operations for frames
 imageio>=2.31.0                    # Video I/O backend
