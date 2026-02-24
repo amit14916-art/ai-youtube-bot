@@ -121,10 +121,14 @@ def run_pipeline(dry_run: bool = False) -> dict | None:
             log.info(f"\n✅ Dry run complete! Files saved in: {OUTPUT_DIR}/")
         else:
             from modules.uploader import upload_to_youtube
+            from modules.notifier import send_whatsapp_notification
             url = upload_to_youtube(content, video_path, thumbnail_path)
             result["youtube_url"] = url
             result["status"] = "uploaded"
             log.info(f"\n🎉 SUCCESS! Video live at: {url}")
+            
+            # Send WhatsApp notification
+            send_whatsapp_notification(url, content["seo_title"])
 
         # Save result summary
         summary_file = os.path.join(OUTPUT_DIR, f"{job_id}_result.json")
