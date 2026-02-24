@@ -181,40 +181,39 @@ def render_slide_image(text: str, is_title: bool = False) -> Image.Image:
     return img.convert("RGBA")
 
 
-def add_vignette(frame: np.ndarray, intensity: float = 0.6) -> np.ndarray:
-    """Add a cinematic vignette effect to the frame."""
-    h, w = frame.shape[:2]
-    # Create radial gradient
-    X, Y = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h))
-    radius = np.sqrt(X**2 + Y**2)
-    # Darken edges
-    vignette = np.clip(1 - radius * intensity, 0, 1)
-    vignette = np.stack([vignette]*3, axis=-1)
-    return (frame * vignette).astype(np.uint8)
+# Pre-calculate vignette mask once to save CPU
+_VIGNETTE_MASK = None
 
-def add_film_grain(frame: np.ndarray, intensity: float = 0.05) -> np.ndarray:
-    """Add subtle film grain (noise) for a professional look."""
-    noise = np.random.normal(0, 255 * intensity, frame.shape).astype(np.int16)
-    frame = frame.astype(np.int16) + noise
-    return np.clip(frame, 0, 255).astype(np.uint8)
+def get_vignette_mask(h, w, intensity=0.6):
+    global _VIGNETTE_MASK
+    if _VIGNETTE_MASK is None or _VIGNETTE_MASK.shape[:2] != (h, w):
+        X, Y = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h))
+        radius = np.sqrt(X**2 + Y**2)
+        mask = np.clip(1 - radius * intensity, 0, 1)
+        _VIGNETTE_MASK = np.stack([mask]*3, axis=-1)
+    return _VIGNETTE_MASK
+
+def add_vignette(frame: np.ndarray) -> np.ndarray:
+    mask = get_authenticated_service_vignette_mask =显示 = get_vignette_mask(*frame.shape[:2])
+    return (frame * mask).astype(np.uint8)
+
+def add_film_grain(frame: np.ndarray, intensity: float = 0.03) -> np.ndarray:
+    """Faster grain using additive integer noise."""
+    noise = np.random.randint(-15, 15, frame.shape, dtype=np.int16)
+    return np.clip(frame.astype(np.int16) + noise, 0, 255).astype(np.uint8)
 
 def particles_frame(t: float) -> np.ndarray:
-    """Small floating glowing dust particles for cinematic depth."""
+    """Reduced particle count for faster rendering."""
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     rng = np.random.RandomState(42)
-    num_particles = 40
-    for i in range(num_particles):
-        px = rng.rand()
-        py = rng.rand()
-        speed = 0.02 + rng.rand() * 0.05
-        # Movement
-        x = int((px * W + t * 40 * speed)) % W
-        y = int((py * H - t * 30 * speed)) % H
-        size = rng.randint(2, 5)
-        # Glowing effect
-        alpha = int(100 + 50 * math.sin(t * 2 + i))
-        draw.ellipse([(x-size, y-size), (x+size, y+size)], fill=(255, 255, 255, alpha))
+    for i in range(20): # Reduced from 40
+        px, py = rng.rand(), rng.rand()
+        x = int((px * W + t * 50)) % W
+        y = int((py * H - t * 30)) % H
+        alpha = int(80 + 40 * math.sin(t * 3 + i))
+        draw.point((x, y), fill=(255, 255, 255, alpha)) # Faster than ellipse
+        draw.point((x+1, y), fill=(255, 255, 255, alpha//2))
     return np.array(img)
 
 
@@ -257,8 +256,8 @@ def create_video(content: dict, audio_path: str, job_id: str) -> str:
         # ─── FOREGROUND ENGINE (Captions) ───
         txt_img = np.array(slide_img)
         txt = ImageClip(txt_img).with_duration(slide_duration).with_fps(VIDEO_FPS)
-        # Cinematic Zoom
-        txt = txt.with_effects([vfx.Resize(lambda t: 1.0 + 0.08 * (t/slide_duration))])
+        # Simplified Zoom (constant scale is faster than per-frame lambda)
+        txt = txt.with_effects([vfx.Resize(1.05)]) 
         
         composite = CompositeVideoClip([bg, txt.with_position("center")])
         slide_clips.append(composite)
