@@ -198,6 +198,7 @@ YOUR TASKS — respond ONLY in valid JSON with these exact keys:
   "seo_description": "First 2 lines must be a high-engagement hook with the primary keyword. Then a 200-word deep summary containing secondary keywords for search optimization. Finally, add relevant time-stamps and credits.",
   "tags": ["trending-keyword", "niche-keyword", "viral-tech-topic", "at-least-15-tags"],
   "thumbnail_text": "3-5 high-impact, bold, punchy words",
+  "thumbnail_prompt": "Specific prompt for an eye-catching thumbnail background (e.g., 'Angry robot vs human', 'Glowing brain with futuristic city'). Use cinematic, highly detailed, dramatic lighting styles.",
   "script": "{'Massive podcast script' if not shorts_only else 'Punchy, high-energy scroll-stopping script'}. MUST be {'at least' if not shorts_only else 'BETWEEN 150 AND 180'} words long. {'Structure as a back-and-forth between Host A and Host B' if not shorts_only else 'Host A and Host B talking fast'}. Format only as 'Host A: ...' and 'Host B: ...'. NO STAGE DIRECTIONS.",
   "visual_hints": ["keyword1", "keyword2", "keyword3"]
 }}

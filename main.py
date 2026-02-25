@@ -112,8 +112,11 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = 
         thumbnail_path = None
         
         if not shorts_only:
+            # Generate dedicated thumbnail background
+            from modules.asset_generator import generate_ai_image
+            thumb_bg = generate_ai_image(content.get("thumbnail_prompt", content["chosen_topic"]), job_id, 999) # 999 for thumb
             video_path    = create_video(content, audio_path, job_id, is_shorts=False)
-            thumbnail_path = create_thumbnail(content, job_id)
+            thumbnail_path = create_thumbnail(content, job_id, thumb_bg)
             result["video_path"]     = video_path
             result["thumbnail_path"] = thumbnail_path
         

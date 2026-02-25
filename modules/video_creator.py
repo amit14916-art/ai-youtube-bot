@@ -348,40 +348,62 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
 #  THUMBNAIL GENERATOR
 # -----------------------------------------------------------------
 
-def create_thumbnail(content: dict, job_id: str) -> str:
-    """Generate a high-quality branded thumbnail."""
-    log.info("Creating premium thumbnail…")
+def create_thumbnail(content: dict, job_id: str, bg_path: str = "") -> str:
+    """Generate a high-quality eye-catching thumbnail."""
+    log.info("Creating eye-catching SEO thumbnail…")
     thumb_path = os.path.join(OUTPUT_DIR, f"{job_id}_thumbnail.jpg")
 
-    # Use first AI image
-    bg_img = os.path.join(OUTPUT_DIR, f"{job_id}_img_0.jpg")
-    if os.path.exists(bg_img):
-        img = Image.open(bg_img).resize((1280, 720))
-        # Add slight darkening
-        overlay = Image.new("RGBA", (1280, 720), (0, 0, 0, 80))
-        img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    # 1. LOAD BACKGROUND
+    if bg_path and os.path.exists(bg_path):
+        img = Image.open(bg_path).resize((1280, 720))
     else:
-        img = Image.new("RGB", (1280, 720), (30, 40, 60))
+        # Fallback to first slide or solid color
+        bg_img = os.path.join(OUTPUT_DIR, f"{job_id}_img_0.jpg")
+        if os.path.exists(bg_img):
+            img = Image.open(bg_img).resize((1280, 720))
+        else:
+            img = Image.new("RGB", (1280, 720), (10, 15, 30))
 
+    # 2. ENHANCE BACKGROUND (Vibrance/Darken Left for Text)
+    # Add a darkening gradient on the left side to make text readable
+    overlay = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    o_draw = ImageDraw.Draw(overlay)
+    for x in range(0, 800):
+        alpha = int(220 * (1 - x/800))
+        o_draw.line([(x, 0), (x, 720)], fill=(0, 0, 0, alpha))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+
+    # 3. DRAW TEXT
     draw = ImageDraw.Draw(img)
     try:
-        font_big = ImageFont.truetype(FONT_PATH, 100)
+        font_main = ImageFont.truetype(FONT_PATH, 110)
+        font_sub  = ImageFont.truetype(FONT_PATH, 60)
     except:
-        font_big = ImageFont.load_default()
+        font_main = ImageFont.load_default()
+        font_sub  = font_main
 
-    text = content.get("thumbnail_text", content["seo_title"][:40]).upper()
-    lines = textwrap.wrap(text, width=15)
-    y = 360 - (len(lines) * 60)
+    text = content.get("thumbnail_text", "AI REVOLUTION").upper()
+    lines = textwrap.wrap(text, width=12)
     
+    start_y = 150
     for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=font_big)
-        lw = bbox[2] - bbox[0]
-        x = (1280 - lw) // 2
-        # Outline
-        for o in range(1, 5):
-            draw.text((x+o, y+o), line, font=font_big, fill=(0,0,0))
-        draw.text((x, y), line, font=font_big, fill=(255, 230, 0))
-        y += 120
+        # Drawing with deep shadow for depth
+        for off in range(2, 10, 2):
+            draw.text((80+off, start_y+off), line, font=font_main, fill=(0, 0, 0, 150))
+        
+        # Main text (High Contrast)
+        draw.text((80, start_y), line, font=font_main, fill=(255, 255, 255))
+        
+        # Add a colored highlight to specific lines or words
+        if "AI" in line or "2025" in line or len(lines) == 1:
+            draw.text((80, start_y), line, font=font_main, fill=(255, 215, 0)) # Gold
+            
+        start_y += 130
 
-    img.save(thumb_path, "JPEG", quality=95)
+    # 4. BRADING / BORDER
+    # Simple neon border
+    border_color = (0, 255, 127) # Spring Green
+    draw.rectangle([10, 10, 1270, 710], outline=border_color, width=8)
+
+    img.save(thumb_path, "JPEG", quality=98)
     return thumb_path
