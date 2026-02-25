@@ -79,3 +79,12 @@ jobs:
         with:
           name: bot-output
           path: output/
+
+      - name: Commit and Push changes
+        if: success()
+        run: |
+          git config --global user.name "AI YouTube Bot"
+          git config --global user.email "bot@youtube-ai.com"
+          git add output/topic_history.json
+          git commit -m "Auto-update topic history [skip ci]" || echo "No changes to commit"
+          git push origin main

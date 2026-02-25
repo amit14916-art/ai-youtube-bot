@@ -194,13 +194,18 @@ YOUR TASKS — respond ONLY in valid JSON with these exact keys:
 {{
   "chosen_topic": "The single best topic to make a video about today",
   "reason": "One sentence why this topic is viral",
-  "seo_title": "Max 70 chars, keyword-rich title",
-  "seo_description": "800-1000 chars hook + description",
-  "tags": ["tag1","tag2"],
-  "thumbnail_text": "3-6 bold words for thumbnail",
+  "seo_title": "Max 50-60 chars. High-CTR, curiosity-gap title. Start with a power word or the main trending keyword. Make it irresistible to click.",
+  "seo_description": "First 2 lines must be a high-engagement hook with the primary keyword. Then a 200-word deep summary containing secondary keywords for search optimization. Finally, add relevant time-stamps and credits.",
+  "tags": ["trending-keyword", "niche-keyword", "viral-tech-topic", "at-least-15-tags"],
+  "thumbnail_text": "3-5 high-impact, bold, punchy words",
   "script": "{'Massive podcast script' if not shorts_only else 'Punchy, high-energy scroll-stopping script'}. MUST be {'at least' if not shorts_only else 'BETWEEN 150 AND 180'} words long. {'Structure as a back-and-forth between Host A and Host B' if not shorts_only else 'Host A and Host B talking fast'}. Format only as 'Host A: ...' and 'Host B: ...'. NO STAGE DIRECTIONS.",
   "visual_hints": ["keyword1", "keyword2", "keyword3"]
 }}
+
+Important for SEO: 
+1. The Title must use 'Title Case' and include a numbers if relevant (e.g., '10 AI Agents...').
+2. The Description must include links to your channel and similar viral topics.
+3. Tags must mix broad keywords (AI) with specific long-tail keywords.
 
 Important for SEO title: Start with the most searched keyword. Make it specific and valuable.
 Important for script: I need a VERY LONG script (AT LEAST {SCRIPT_WORDS} words). Break the conversation into 5 clear sections:
