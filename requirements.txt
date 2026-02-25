@@ -31,5 +31,11 @@ google-auth-httplib2>=0.1.1        # HTTP transport
 # ── Scheduling ────────────────────────────────────────────────
 schedule>=1.2.1                    # Daily job scheduler
 
-# ── System ────────────────────────────────────────────────────
-python-dotenv>=1.0.0               # Optional: load .env file
+# ── Web Framework / SaaS ──────────────────────────────────────
+fastapi>=0.100.0                  # API framework
+uvicorn>=0.22.0                    # ASGI server
+sqlalchemy>=2.0.0                  # Database ORM
+python-jose[cryptography]>=3.3.0   # JWT tokens
+passlib[bcrypt]>=1.7.4             # Password hashing
+stripe>=5.0.0                      # Payments
+python-multipart>=0.0.6            # Form data support

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic AI World | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #05070a;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gold-gradient {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(217, 119, 6, 0.4);
+        }
+
+        .sidebar-item {
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fbbf24;
+        }
+
+        .active-nav {
+            background: rgba(251, 191, 36, 0.1);
+            color: #fbbf24;
+            border-right: 3px solid #fbbf24;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade {
+            animation: fadeIn 0.5s ease forwards;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-slate-800 flex flex-col fixed h-full z-50">
+        <div class="p-8">
+            <h1 class="text-2xl font-extrabold gold-gradient tracking-tighter">AGENTIC AI</h1>
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Automation Studio</p>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-2">
+            <a href="#" class="sidebar-item active-nav flex items-center gap-3 p-3 rounded-xl font-medium">
+                <i class="ph ph-squares-four text-xl"></i> Dashboard
+            </a>
+            <a href="#" class="sidebar-item flex items-center gap-3 p-3 rounded-xl font-medium text-slate-400">
+                <i class="ph ph-video-camera text-xl"></i> My Videos
+            </a>
+            <a href="#" class="sidebar-item flex items-center gap-3 p-3 rounded-xl font-medium text-slate-400">
+                <i class="ph ph-chart-line-up text-xl"></i> Analytics
+            </a>
+            <a href="#" class="sidebar-item flex items-center gap-3 p-3 rounded-xl font-medium text-slate-400">
+                <i class="ph ph-credit-card text-xl"></i> Billing
+            </a>
+        </nav>
+
+        <div class="p-4 mt-auto">
+            <div class="glass p-4 rounded-2xl border-amber-500/20 bg-amber-500/5">
+                <p class="text-xs text-amber-200/60 mb-1">Current Balance</p>
+                <p class="text-xl font-bold text-amber-500">72 Credits</p>
+                <button class="w-full mt-3 py-2 text-xs font-bold btn-gold text-black rounded-lg">UPGRADE</button>
+            </div>
+
+            <div class="mt-6 flex items-center gap-3 p-2">
+                <div
+                    class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-amber-500 font-bold border border-slate-700">
+                    A</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold truncate">Abhishek User</p>
+                    <p class="text-[10px] text-slate-500">Pro Plan</p>
+                </div>
+                <i class="ph ph-sign-out text-slate-500 cursor-pointer hover:text-red-400"></i>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="ml-64 flex-1 p-8">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-10">
+            <div>
+                <h2 class="text-3xl font-bold">Welcome back, <span class="text-amber-500">Chief</span></h2>
+                <p class="text-slate-500">Your AI bot is working hard for you today.</p>
+            </div>
+            <div class="flex gap-4">
+                <button class="px-6 py-3 glass rounded-2xl font-bold hover:bg-slate-800 transition">
+                    <i class="ph ph-gear-six"></i> Config
+                </button>
+                <button class="px-6 py-3 btn-gold text-black rounded-2xl font-extrabold flex items-center gap-2">
+                    <i class="ph ph-plus-circle"></i> GENERATE NEW VIDEO
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 animate-fade">
+            <div class="glass p-6 rounded-3xl">
+                <i class="ph ph-youtube-logo text-3xl text-red-500 mb-4"></i>
+                <p class="text-slate-400 text-sm">Total Uploads</p>
+                <h3 class="text-3xl font-bold">142</h3>
+            </div>
+            <div class="glass p-6 rounded-3xl">
+                <i class="ph ph-eye text-3xl text-blue-400 mb-4"></i>
+                <p class="text-slate-400 text-sm">Total Views</p>
+                <h3 class="text-3xl font-bold">1.2M</h3>
+            </div>
+            <div class="glass p-6 rounded-3xl">
+                <i class="ph ph-users text-3xl text-green-400 mb-4"></i>
+                <p class="text-slate-400 text-sm">Followers Gained</p>
+                <h3 class="text-3xl font-bold">+12,400</h3>
+            </div>
+            <div class="glass p-6 rounded-3xl">
+                <i class="ph ph-clock text-3xl text-amber-500 mb-4"></i>
+                <p class="text-slate-400 text-sm">Next Upload</p>
+                <h3 class="text-3xl font-bold">2h 14m</h3>
+            </div>
+        </section>
+
+        <!-- Video List -->
+        <section class="glass rounded-[40px] p-8 animate-fade" style="animation-delay: 0.1s">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-xl font-bold">Recent Generations</h3>
+                <a href="#" class="text-amber-500 text-sm font-bold">View History →</a>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Video Entry -->
+                <div
+                    class="flex items-center gap-6 p-4 rounded-3xl hover:bg-white/5 transition border border-transparent hover:border-white/10 group">
+                    <div class="w-32 h-20 rounded-2xl bg-slate-800 overflow-hidden relative border border-white/5">
+                        <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=500&auto=format&fit=crop&q=60"
+                            class="object-cover w-full h-full opacity-60 group-hover:scale-110 transition duration-500">
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="ph ph-play-circle text-3xl opacity-0 group-hover:opacity-100 transition"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-lg mb-1">GPT-5 Release Date: AI Future Industry</h4>
+                        <p class="text-xs text-slate-500 flex items-center gap-2">
+                            <i class="ph ph-calendar"></i> 25 Feb, 2026 • <i class="ph ph-clock"></i> 7:32 AM
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <span
+                            class="px-3 py-1 bg-green-500/10 text-green-400 text-[10px] font-bold rounded-full border border-green-500/20">UPLOADED</span>
+                        <span
+                            class="px-3 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold rounded-full border border-amber-500/20">SHORTS
+                            SYNCED</span>
+                    </div>
+                    <div class="flex gap-4 ml-8">
+                        <button class="text-slate-400 hover:text-white transition"><i
+                                class="ph ph-pencil-simple text-xl"></i></button>
+                        <button class="text-slate-400 hover:text-white transition"><i
+                                class="ph ph-share-network text-xl"></i></button>
+                        <button class="text-amber-500"><i class="ph ph-link text-xl"></i></button>
+                    </div>
+                </div>
+
+                <!-- Another Video Entry -->
+                <div
+                    class="flex items-center gap-6 p-4 rounded-3xl hover:bg-white/5 transition border border-transparent hover:border-white/10 group opacity-50">
+                    <div class="w-32 h-20 rounded-2xl bg-slate-800 flex items-center justify-center animate-pulse">
+                        <i class="ph ph-spinner animate-spin text-2xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-lg mb-1">The Rise of Agentic AI Workflows</h4>
+                        <p class="text-xs text-slate-500 flex items-center gap-2 uppercase tracking-widest font-bold">
+                            Generating Script... 40%
+                        </p>
+                    </div>
+                    <div>
+                        <span
+                            class="px-3 py-1 bg-slate-500/10 text-slate-400 text-[10px] font-bold rounded-full border border-slate-500/20">PROCESSING</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = "http://localhost:8000";
+        let token = localStorage.getItem('token');
+
+        async function fetchStats() {
+            try {
+                // In a real app, we'd fetch actual stats here
+                // For now, let's keep the UI placeholders or update them
+            } catch (err) { console.error(err); }
+        }
+
+        async function createJob() {
+            if (!token) {
+                alert("Please login first!");
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/jobs/create`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await resp.json();
+                alert(data.status);
+            } catch (err) { alert("Job creation failed"); }
+        }
+
+        // Add event listener to generation button
+        document.querySelector('button.btn-gold').addEventListener('click', createJob);
+
+        // Initial load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log("Dashboard Loaded");
+            if (token) {
+                // Fetch info
+            }
+        });
+    </script>
+</body>
+
+</html>

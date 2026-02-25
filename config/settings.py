@@ -24,7 +24,7 @@ GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "56147179e87e648f
 
 # ─── ELEVENLABS (Premium TTS) ────────────────────────────
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "sk_b00fac47a3960642fbd00a014066d0a78b10cc681dcf4f74")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM") # Host A (Rachel)
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "NFG5qt843uXKj4pFvR7C") # Host A (Adam)
 ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2", "G0yjIg3xY8gEJZkHpjVm") # Host B
 
 # ─── VIDEO SETTINGS ──────────────────────────────────────
@@ -63,9 +63,11 @@ DEFAULT_LANGUAGE = "en"
 UPLOAD_HOUR   = 9
 UPLOAD_MINUTE = 0
 
-# (We will modify main.py to handle 3 uploads per day)
-DAILY_UPLOADS = 3
-UPLOAD_TIMES  = ["09:00", "15:00", "21:00"]
+# 3 times for Long + Short
+UPLOAD_TIMES = ["09:00", "15:00", "21:00"]
+
+# 5 additional times for Shorts only to reach ~8 shorts daily
+SHORTS_ONLY_TIMES = ["07:00", "11:00", "13:00", "17:00", "19:00"]
 
 # ─── OUTPUT PATHS ────────────────────────────────────────
 OUTPUT_DIR      = "output"

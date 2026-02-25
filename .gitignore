@@ -19,3 +19,9 @@ temp/
 # OS
 .DS_Store
 Thumbs.db
+
+# Database
+*.db
+
+# Temp Files
+*_videoTEMP_*.mp4

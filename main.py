@@ -31,7 +31,6 @@ from config.settings import (
     UPLOAD_HOUR, 
     UPLOAD_MINUTE, 
     UPLOAD_TIMES, 
-    DAILY_UPLOADS, 
     OUTPUT_DIR, 
     LOG_FILE
 )
@@ -73,7 +72,7 @@ except Exception as e:
 #  CORE PIPELINE
 # ─────────────────────────────────────────────────────────────────
 
-def run_pipeline(dry_run: bool = False) -> dict | None:
+def run_pipeline(dry_run: bool = False, shorts_only: bool = False) -> dict | None:
     """
     Execute the full content creation and upload pipeline.
     Returns a dict with results or None on failure.
@@ -107,14 +106,23 @@ def run_pipeline(dry_run: bool = False) -> dict | None:
         audio_path = generate_audio(content["script"], job_id)
         result["audio_path"] = audio_path
 
-        # ── PHASE 3: VIDEO ─────────────────────────────────────
+        # ── PHASE 3: VIDEO (Long) ──────────────────────────────
         from modules.video_creator import create_video, create_thumbnail
-        video_path    = create_video(content, audio_path, job_id)
-        thumbnail_path = create_thumbnail(content, job_id)
-        result["video_path"]     = video_path
-        result["thumbnail_path"] = thumbnail_path
+        video_path = None
+        thumbnail_path = None
+        
+        if not shorts_only:
+            video_path    = create_video(content, audio_path, job_id, is_shorts=False)
+            thumbnail_path = create_thumbnail(content, job_id)
+            result["video_path"]     = video_path
+            result["thumbnail_path"] = thumbnail_path
+        
+        # ── PHASE 4: VIDEO (Shorts) ─────────────────────────────
+        log.info("Generating Vertical Shorts version...")
+        shorts_path = create_video(content, audio_path, job_id, is_shorts=True)
+        result["shorts_path"] = shorts_path
 
-        # ── PHASE 4: UPLOAD ─────────────────────────────────────
+        # ── PHASE 5: UPLOAD ─────────────────────────────────────
         if dry_run:
             log.info("DRY RUN — skipping YouTube upload")
             result["status"] = "dry_run_complete"
@@ -122,13 +130,27 @@ def run_pipeline(dry_run: bool = False) -> dict | None:
         else:
             from modules.uploader import upload_to_youtube
             from modules.notifier import send_whatsapp_notification
-            url = upload_to_youtube(content, video_path, thumbnail_path)
-            result["youtube_url"] = url
-            result["status"] = "uploaded"
-            log.info(f"\n🎉 SUCCESS! Video live at: {url}")
             
-            # Send WhatsApp notification
-            send_whatsapp_notification(url, content["seo_title"])
+            # Upload Long Video
+            if not shorts_only:
+                log.info("🚀 Uploading Long Video...")
+                url = upload_to_youtube(content, video_path, thumbnail_path)
+                result["youtube_url"] = url
+                # Send WhatsApp notification
+                send_whatsapp_notification(url, content["seo_title"])
+            
+            # Upload Shorts
+            log.info("🚀 Uploading Shorts Video...")
+            content_shorts = content.copy()
+            content_shorts["seo_title"] = f"{content['seo_title'][:50]}... #shorts"
+            content_shorts["seo_description"] += "\n\n#shorts #ai #tech"
+            shorts_url = upload_to_youtube(content_shorts, shorts_path, "")
+            result["shorts_url"] = shorts_url
+
+            result["status"] = "uploaded"
+            log.info(f"\n🎉 SUCCESS!")
+            if not shorts_only: log.info(f"Long: {result.get('youtube_url')}")
+            log.info(f"Shorts: {shorts_url}")
 
         # Save result summary
         summary_file = os.path.join(OUTPUT_DIR, f"{job_id}_result.json")
@@ -148,20 +170,26 @@ def run_pipeline(dry_run: bool = False) -> dict | None:
 #  SCHEDULER
 # ─────────────────────────────────────────────────────────────────
 
+def run_shorts_only():
+    """Run pipeline but only for Shorts."""
+    run_pipeline(dry_run=False, shorts_only=True)
+
 def run_scheduled():
-    """Run the pipeline once and log status."""
+    """Run the full pipeline (Long + Short)."""
     run_pipeline(dry_run=False)
 
 def start_scheduler():
     """Start the daily scheduler with multiple upload times."""
-    log.info(f"📅 Scheduler started — will run {DAILY_UPLOADS} times daily at {UPLOAD_TIMES}")
+    from config.settings import SHORTS_ONLY_TIMES
+    log.info(f"📅 Scheduler started")
+    log.info(f"  Long + Shorts: {UPLOAD_TIMES}")
+    log.info(f"  Shorts Only  : {SHORTS_ONLY_TIMES}")
 
     for t in UPLOAD_TIMES:
         schedule.every().day.at(t).do(run_scheduled)
-
-    # If you want to jumpstart with one upload now:
-    # log.info("Running initial job now…")
-    # run_scheduled()
+        
+    for t in SHORTS_ONLY_TIMES:
+        schedule.every().day.at(t).do(run_shorts_only)
 
     while True:
         schedule.run_pending()
