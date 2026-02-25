@@ -8,6 +8,7 @@ venv/
 
 # Project specific
 output/
+!output/topic_history.json
 assets/bgm.mp3
 assets/stock_videos/
 temp/
