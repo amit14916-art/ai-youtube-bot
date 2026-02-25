@@ -103,22 +103,55 @@ def read_users_me(current_user: models.User = Depends(get_current_user)):
     }
 
 @app.post("/jobs/create")
-def create_job(background_tasks: BackgroundTasks, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_job(background_tasks: BackgroundTasks, topic: str = None, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.credits <= 0:
         raise HTTPException(status_code=400, detail="Not enough credits")
+    
+    # Generate a job ID
+    job_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Create job record
+    new_job = models.Job(
+        job_id=job_id,
+        topic=topic or "Trending Research",
+        status="started",
+        user_id=current_user.id
+    )
+    db.add(new_job)
     
     # Deduct credit
     current_user.credits -= 1
     db.commit()
+    db.refresh(new_job)
     
-    # Placeholder for async run
-    def background_run():
-        job_result = run_pipeline(dry_run=False) # Or maybe a modified one
-        # Save to DB here (needs separate DB session)
-        pass
+    # Background worker
+    def background_run(jid, user_topic):
+        # Create a fresh DB session for the background thread
+        worker_db = SessionLocal()
+        try:
+            # Run the actual bot pipeline
+            job_result = run_pipeline(dry_run=False, topic=user_topic)
+            
+            # Update job in DB
+            db_job = worker_db.query(models.Job).filter(models.Job.job_id == jid).first()
+            if db_job:
+                if job_result and job_result.get("status") == "uploaded":
+                    db_job.status = "completed"
+                    db_job.youtube_url = job_result.get("youtube_url")
+                    db_job.shorts_url = job_result.get("shorts_url")
+                else:
+                    db_job.status = "failed"
+                worker_db.commit()
+        except Exception as e:
+            db_job = worker_db.query(models.Job).filter(models.Job.job_id == jid).first()
+            if db_job:
+                db_job.status = "failed"
+                worker_db.commit()
+        finally:
+            worker_db.close()
     
-    background_tasks.add_task(background_run)
-    return {"status": "Job started", "remaining_credits": current_user.credits}
+    background_tasks.add_task(background_run, job_id, topic)
+    return {"status": "Job started", "job_id": job_id, "remaining_credits": current_user.credits}
 
 @app.get("/jobs")
 def list_jobs(current_user: models.User = Depends(get_current_user)):

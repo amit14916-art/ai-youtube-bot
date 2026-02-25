@@ -72,7 +72,7 @@ except Exception as e:
 #  CORE PIPELINE
 # ─────────────────────────────────────────────────────────────────
 
-def run_pipeline(dry_run: bool = False, shorts_only: bool = False) -> dict | None:
+def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = None) -> dict | None:
     """
     Execute the full content creation and upload pipeline.
     Returns a dict with results or None on failure.
@@ -87,7 +87,7 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False) -> dict | Non
     try:
         # ── PHASE 1: RESEARCH ──────────────────────────────────
         from modules.researcher import run_research
-        content = run_research()
+        content = run_research(custom_topic=topic)
 
         log.info(f"\n{'─'*50}")
         log.info(f"  TOPIC   : {content['chosen_topic']}")

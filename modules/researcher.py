@@ -148,6 +148,7 @@ def google_search(query: str, num: int = 5) -> list[dict]:
 def pick_best_topic_and_generate(
     google_topics: list[str],
     youtube_videos: list[dict],
+    custom_topic: Optional[str] = None
 ) -> dict:
     """
     Use Claude to:
@@ -159,14 +160,18 @@ def pick_best_topic_and_generate(
     yt_titles = "\n".join(f"- {v['title']}" for v in youtube_videos[:8])
     gt_topics = "\n".join(f"- {t}" for t in google_topics[:15])
 
-    prompt = f"""You are an expert YouTube content strategist and lead writer for a top-tier tech podcast. Your primary goal is to provide a COMPREHENSIVE and DETAILED script that exceeds {SCRIPT_WORDS} words.
+    if custom_topic:
+        top_instruction = f"CREATE A VIDEO SCRIPT ABOUT THIS SPECIFIC TOPIC: '{custom_topic}'."
+        data_context = f"Based on this topic: {custom_topic}"
+    else:
+        top_instruction = "Pick the single best video topic from the trending data below."
+        data_context = f"TRENDING DATA:\n=== Google Trends ===\n{gt_topics}\n\n=== Top YouTube Videos ===\n{yt_titles}"
 
-TRENDING DATA:
-=== Google Trends (AI niche, last 7 days) ===
-{gt_topics}
+    prompt = f"""You are an expert YouTube content strategist. Your primary goal is to provide a COMPREHENSIVE and DETAILED script that exceeds {SCRIPT_WORDS} words.
+    
+    {top_instruction}
 
-=== Top YouTube AI Videos (last 7 days by views) ===
-{yt_titles}
+    {data_context}
 
 YOUR TASKS — respond ONLY in valid JSON with these exact keys:
 
@@ -227,10 +232,18 @@ Be engaging, use human-like interruptions (like "Wait, so you're saying...", "Ex
 #  PUBLIC ENTRY POINT
 # ─────────────────────────────────────────────────────────────────
 
-def run_research() -> dict:
+def run_research(custom_topic: Optional[str] = None) -> dict:
     """Full research pipeline. Returns content dict."""
     log.info("═══ Starting Research Phase ═══")
-    google_topics  = get_google_trending_topics()
-    youtube_videos = get_youtube_trending_ai()
-    content = pick_best_topic_and_generate(google_topics, youtube_videos)
+    
+    if custom_topic:
+        log.info(f"Using custom topic: {custom_topic}")
+        # Still get some context for the custom topic
+        youtube_videos = get_youtube_trending_ai() # Or search specifically for topic
+        google_topics = [custom_topic]
+    else:
+        google_topics  = get_google_trending_topics()
+        youtube_videos = get_youtube_trending_ai()
+        
+    content = pick_best_topic_and_generate(google_topics, youtube_videos, custom_topic=custom_topic)
     return content

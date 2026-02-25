@@ -101,19 +101,19 @@
         <div class="p-4 mt-auto">
             <div class="glass p-4 rounded-2xl border-amber-500/20 bg-amber-500/5">
                 <p class="text-xs text-amber-200/60 mb-1">Current Balance</p>
-                <p class="text-xl font-bold text-amber-500">72 Credits</p>
+                <p class="text-xl font-bold text-amber-500" id="user-credits">-- Credits</p>
                 <button class="w-full mt-3 py-2 text-xs font-bold btn-gold text-black rounded-lg">UPGRADE</button>
             </div>
 
             <div class="mt-6 flex items-center gap-3 p-2">
-                <div
-                    class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-amber-500 font-bold border border-slate-700">
-                    A</div>
+                <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-amber-500 font-bold border border-slate-700"
+                    id="user-initial">
+                    U</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold truncate">Abhishek User</p>
-                    <p class="text-[10px] text-slate-500">Pro Plan</p>
+                    <p class="text-sm font-semibold truncate" id="user-email">Loading...</p>
+                    <p class="text-[10px] text-slate-500" id="user-plan">Free Plan</p>
                 </div>
-                <i class="ph ph-sign-out text-slate-500 cursor-pointer hover:text-red-400"></i>
+                <i class="ph ph-sign-out text-slate-500 cursor-pointer hover:text-red-400" onclick="logout()"></i>
             </div>
         </div>
     </aside>
@@ -130,7 +130,8 @@
                 <button class="px-6 py-3 glass rounded-2xl font-bold hover:bg-slate-800 transition">
                     <i class="ph ph-gear-six"></i> Config
                 </button>
-                <button class="px-6 py-3 btn-gold text-black rounded-2xl font-extrabold flex items-center gap-2">
+                <button class="px-6 py-3 btn-gold text-black rounded-2xl font-extrabold flex items-center gap-2"
+                    onclick="promptJob()">
                     <i class="ph ph-plus-circle"></i> GENERATE NEW VIDEO
                 </button>
             </div>
@@ -167,94 +168,159 @@
                 <a href="#" class="text-amber-500 text-sm font-bold">View History →</a>
             </div>
 
-            <div class="space-y-4">
-                <!-- Video Entry -->
-                <div
-                    class="flex items-center gap-6 p-4 rounded-3xl hover:bg-white/5 transition border border-transparent hover:border-white/10 group">
-                    <div class="w-32 h-20 rounded-2xl bg-slate-800 overflow-hidden relative border border-white/5">
-                        <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=500&auto=format&fit=crop&q=60"
-                            class="object-cover w-full h-full opacity-60 group-hover:scale-110 transition duration-500">
-                        <div class="absolute inset-0 flex items-center justify-center">
-                            <i class="ph ph-play-circle text-3xl opacity-0 group-hover:opacity-100 transition"></i>
-                        </div>
-                    </div>
-                    <div class="flex-1">
-                        <h4 class="font-bold text-lg mb-1">GPT-5 Release Date: AI Future Industry</h4>
-                        <p class="text-xs text-slate-500 flex items-center gap-2">
-                            <i class="ph ph-calendar"></i> 25 Feb, 2026 • <i class="ph ph-clock"></i> 7:32 AM
-                        </p>
-                    </div>
-                    <div class="flex gap-2">
-                        <span
-                            class="px-3 py-1 bg-green-500/10 text-green-400 text-[10px] font-bold rounded-full border border-green-500/20">UPLOADED</span>
-                        <span
-                            class="px-3 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold rounded-full border border-amber-500/20">SHORTS
-                            SYNCED</span>
-                    </div>
-                    <div class="flex gap-4 ml-8">
-                        <button class="text-slate-400 hover:text-white transition"><i
-                                class="ph ph-pencil-simple text-xl"></i></button>
-                        <button class="text-slate-400 hover:text-white transition"><i
-                                class="ph ph-share-network text-xl"></i></button>
-                        <button class="text-amber-500"><i class="ph ph-link text-xl"></i></button>
-                    </div>
-                </div>
-
-                <!-- Another Video Entry -->
-                <div
-                    class="flex items-center gap-6 p-4 rounded-3xl hover:bg-white/5 transition border border-transparent hover:border-white/10 group opacity-50">
-                    <div class="w-32 h-20 rounded-2xl bg-slate-800 flex items-center justify-center animate-pulse">
-                        <i class="ph ph-spinner animate-spin text-2xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h4 class="font-bold text-lg mb-1">The Rise of Agentic AI Workflows</h4>
-                        <p class="text-xs text-slate-500 flex items-center gap-2 uppercase tracking-widest font-bold">
-                            Generating Script... 40%
-                        </p>
-                    </div>
-                    <div>
-                        <span
-                            class="px-3 py-1 bg-slate-500/10 text-slate-400 text-[10px] font-bold rounded-full border border-slate-500/20">PROCESSING</span>
-                    </div>
-                </div>
+            <div class="space-y-4" id="jobs-container">
+                <p class="text-slate-500 text-center py-10">Loading your generations...</p>
             </div>
         </section>
     </main>
+
+    <!-- Login Overlay -->
+    <div id="login-overlay"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center hidden">
+        <div class="glass w-full max-w-md p-10 rounded-[40px] animate-fade">
+            <h2 class="text-3xl font-extrabold gold-gradient mb-2">Welcome Back</h2>
+            <p class="text-slate-400 mb-8">Login to your automation studio</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Email Address</label>
+                    <input type="email" id="login-email"
+                        class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 focus:border-amber-500 outline-none transition"
+                        placeholder="admin@example.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Password</label>
+                    <input type="password" id="login-pass"
+                        class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 focus:border-amber-500 outline-none transition"
+                        placeholder="••••••••">
+                </div>
+                <button onclick="login()" class="w-full py-4 btn-gold text-black rounded-2xl font-bold mt-4">UNLEASH THE
+                    BOT</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const API_BASE = "http://localhost:8000";
         let token = localStorage.getItem('token');
 
-        async function fetchStats() {
+        function showLogin() {
+            document.getElementById('login-overlay').classList.remove('hidden');
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            location.reload();
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-pass').value;
+
+            const formData = new URLSearchParams();
+            formData.append('username', email);
+            formData.append('password', password);
+
             try {
-                // In a real app, we'd fetch actual stats here
-                // For now, let's keep the UI placeholders or update them
+                const resp = await fetch(`${API_BASE}/token`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                });
+                const data = await resp.json();
+                if (data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                    location.reload();
+                } else {
+                    alert(data.detail || "Login failed");
+                }
+            } catch (err) { alert("Server connection failed"); }
+        }
+
+        async function fetchUserData() {
+            try {
+                const resp = await fetch(`${API_BASE}/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resp.status === 401) return logout();
+                const user = await resp.json();
+
+                document.getElementById('user-credits').innerText = `${user.credits} Credits`;
+                document.getElementById('user-email').innerText = user.email;
+                document.getElementById('user-initial').innerText = user.email[0].toUpperCase();
+                document.getElementById('user-plan').innerText = user.is_premium ? "Pro Plan" : "Free Plan";
             } catch (err) { console.error(err); }
         }
 
-        async function createJob() {
+        async function fetchJobs() {
+            try {
+                const resp = await fetch(`${API_BASE}/jobs`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const jobs = await resp.json();
+                const container = document.getElementById('jobs-container');
+
+                if (jobs.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500 text-center py-10">No videos generated yet. Click the button above to start!</p>`;
+                    return;
+                }
+
+                container.innerHTML = jobs.map(job => `
+                    <div class="flex items-center gap-6 p-4 rounded-3xl hover:bg-white/5 transition border border-transparent hover:border-white/10 group">
+                        <div class="w-32 h-20 rounded-2xl bg-slate-800 overflow-hidden relative border border-white/5">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i class="ph ph-video-camera text-2xl text-slate-600"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-lg mb-1">${job.topic || 'New Video Project'}</h4>
+                            <p class="text-xs text-slate-500 flex items-center gap-2">
+                                <i class="ph ph-calendar"></i> ${new Date(job.created_at).toLocaleDateString()}
+                            </p>
+                        </div>
+                        <div>
+                            <span class="px-3 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold rounded-full border border-amber-500/20 uppercase">${job.status}</span>
+                        </div>
+                        <div class="flex gap-4 ml-8">
+                            ${job.youtube_url ? `<a href="${job.youtube_url}" target="_blank" class="text-amber-500"><i class="ph ph-link text-xl"></i></a>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        async function promptJob() {
+            const topic = prompt("What's the video topic? (Leave blank for trending research)");
+            createJob(topic);
+        }
+
+        async function createJob(topic) {
             if (!token) {
-                alert("Please login first!");
+                showLogin();
                 return;
             }
             try {
-                const resp = await fetch(`${API_BASE}/jobs/create`, {
+                const url = topic ? `${API_BASE}/jobs/create?topic=${encodeURIComponent(topic)}` : `${API_BASE}/jobs/create`;
+                const resp = await fetch(url, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await resp.json();
                 alert(data.status);
+                fetchUserData();
+                fetchJobs();
             } catch (err) { alert("Job creation failed"); }
         }
 
-        // Add event listener to generation button
-        document.querySelector('button.btn-gold').addEventListener('click', createJob);
-
         // Initial load
         window.addEventListener('DOMContentLoaded', () => {
-            console.log("Dashboard Loaded");
-            if (token) {
-                // Fetch info
+            if (!token) {
+                showLogin();
+            } else {
+                fetchUserData();
+                fetchJobs();
+                // Refresh occasionally
+                setInterval(fetchJobs, 10000);
             }
         });
     </script>
