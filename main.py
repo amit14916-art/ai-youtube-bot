@@ -214,12 +214,22 @@ if __name__ == "__main__":
         action="store_true",
         help="Generate content and video but skip YouTube upload",
     )
+    parser.add_argument(
+        "--shorts-only",
+        action="store_true",
+        help="Only generate and upload the Vertical Short",
+    )
+    parser.add_argument(
+        "--topic",
+        type=str,
+        help="Custom topic for this run",
+    )
     args = parser.parse_args()
 
     if args.schedule:
         start_scheduler()
     else:
-        result = run_pipeline(dry_run=args.dry_run)
+        result = run_pipeline(dry_run=args.dry_run, shorts_only=args.shorts_only, topic=args.topic)
         if result and result.get("status") in ("uploaded", "dry_run_complete"):
             sys.exit(0)
         else:

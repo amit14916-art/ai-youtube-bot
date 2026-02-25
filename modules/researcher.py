@@ -167,7 +167,7 @@ def pick_best_topic_and_generate(
         top_instruction = "Pick the single best video topic from the trending data below."
         data_context = f"TRENDING DATA:\n=== Google Trends ===\n{gt_topics}\n\n=== Top YouTube Videos ===\n{yt_titles}"
 
-    prompt = f"""You are an expert YouTube content strategist. Your primary goal is to provide a COMPREHENSIVE and DETAILED script that exceeds {SCRIPT_WORDS} words.
+    prompt = f"""You are an expert YouTube content strategist. Your primary goal is to provide an EXTREMELY DETAILED, HIGH-LENGTH deep dive podcast script that MUST exceed {SCRIPT_WORDS} words.
     
     {top_instruction}
 
@@ -177,12 +177,12 @@ YOUR TASKS — respond ONLY in valid JSON with these exact keys:
 
 {{
   "chosen_topic": "The single best topic to make a video about today",
-  "reason": "One sentence why this topic has the highest viral/educational potential",
-  "seo_title": "YouTube video title, max 70 chars, keyword-rich, curiosity-driven, no clickbait",
-  "seo_description": "YouTube description 800-1000 chars. First 2 lines must hook viewers and contain main keyword. Include timestamps placeholder [TIMESTAMPS], call-to-action, hashtags at end.",
-  "tags": ["tag1","tag2",...],
-  "thumbnail_text": "Bold 3-6 word text to overlay on thumbnail",
-  "script": "Full {SCRIPT_WORDS}-word DEEP DIVE PODCAST script. Structure as an engaging conversation between two hosts (Host A and Host B). Format it like a natural discussion, diving deep into the tech, its impact, and future implications. NO stage directions, just the dialogue text labeled with Host A: and Host B:.",
+  "reason": "One sentence why this topic is viral",
+  "seo_title": "Max 70 chars, keyword-rich title",
+  "seo_description": "800-1000 chars hook + description",
+  "tags": ["tag1","tag2"],
+  "thumbnail_text": "3-6 bold words for thumbnail",
+  "script": "A massive, deep-dive podcast dialogue between Host A (Expert) and Host B (Curious). This MUST be at least {SCRIPT_WORDS} words long. Go into extreme detail about the history, technology, current news, and future implications. Elaborate extensively on every point to ensure a 7-8 minute duration. Use natural conversation, but keep it packed with information. Format only as 'Host A: ...' and 'Host B: ...'.",
   "visual_hints": ["keyword1", "keyword2", "keyword3"]
 }}
 

@@ -2,8 +2,19 @@ name: AI YouTube Bot Runner
 
 on:
   schedule:
-    - cron: '0 3,9,15 * * *' # 8:30 AM, 2:30 PM, 8:30 PM IST approx (UTC based)
-  workflow_dispatch: # Allows manual run
+    # 9, 11, 1, 3, 5, 7, 9 IST -> 3:30, 5:30, 7:30, 9:30, 11:30, 13:30, 15:30 UTC
+    - cron: '30 3,5,7,9,11,13,15 * * *'
+  workflow_dispatch:
+    inputs:
+      shorts_only:
+        description: 'Run only for Shorts'
+        required: false
+        default: false
+        type: boolean
+      topic:
+        description: 'Custom topic (leave empty for research)'
+        required: false
+        default: ''
 
 jobs:
   build-and-run:
@@ -38,7 +49,29 @@ jobs:
         run: |
           mkdir -p config
           echo "$YOUTUBE_TOKEN_JSON" > config/token.json
-          python main.py
+          
+          # Logic to decide if it's a Long or Shorts-only run based on UTC hour
+          # Hours for Long (IST 9, 15, 21): 3, 9, 15 UTC
+          HOUR=$(date +%H)
+          FLAGS=""
+          
+          # If manual run, check inputs
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.shorts_only }}" == "true" ]; then
+              FLAGS="--shorts-only"
+            fi
+            if [ -n "${{ github.event.inputs.topic }}" ]; then
+              FLAGS="$FLAGS --topic \"${{ github.event.inputs.topic }}\""
+            fi
+          else
+            # Automated run: check if it's one of the "Shorts Only" intervals (5, 7, 11, 13 UTC)
+            if [[ "$HOUR" == "05" || "$HOUR" == "07" || "$HOUR" == "11" || "$HOUR" == "13" ]]; then
+              FLAGS="--shorts-only"
+            fi
+          fi
+          
+          echo "Running with flags: $FLAGS"
+          python main.py $FLAGS
 
       - name: Upload Logs/Output
         if: always()

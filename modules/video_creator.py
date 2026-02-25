@@ -204,12 +204,27 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
 
     # 1. Load voiceover
     voice = AudioFileClip(audio_path)
+    if is_shorts and voice.duration > 60:
+        log.info("Trimming voiceover to 60s for Shorts...")
+        voice = voice.subclip(0, 59.5) # Leave a tiny buffer
+        
     total_duration = voice.duration
     log.info(f"Voiceover duration: {total_duration:.1f}s")
     
     # 2. Extract slides
-    slides = script_to_slides(content["script"], content["seo_title"])
-    slide_duration = total_duration / len(slides)
+    all_slides = script_to_slides(content["script"], content["seo_title"])
+    
+    # If shorts, we only take the first few slides that fit in 60s
+    if is_shorts:
+        # Roughly 2-3 seconds per slide for high engagement
+        slide_duration = 3.5 
+        max_slides = int(total_duration / slide_duration)
+        slides = all_slides[:max_slides]
+        # Re-calculate exact slide duration to fill time
+        slide_duration = total_duration / len(slides)
+    else:
+        slides = all_slides
+        slide_duration = total_duration / len(slides)
     
     # 3. Handle Graphics
     hints = content.get("visual_hints", [])

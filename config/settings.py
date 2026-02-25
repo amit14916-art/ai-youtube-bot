@@ -45,7 +45,7 @@ if not FONT_PATH:
 # ─── RESEARCH SETTINGS ───────────────────────────────────
 NICHE           = "AGENTIC AI WORLD"
 RESEARCH_TOPICS = 5          # Number of trending topics to research
-SCRIPT_WORDS    = 1100       # ~6-7 minute video (avg 150-160 words per min)
+SCRIPT_WORDS    = 1300       # ~8-9 minute video to ensure at least 6-7 mins minimum
 
 # Google Trends geo (US, IN, GB, etc.)
 TRENDS_GEO = "US"
@@ -66,8 +66,8 @@ UPLOAD_MINUTE = 0
 # 3 times for Long + Short
 UPLOAD_TIMES = ["09:00", "15:00", "21:00"]
 
-# 5 additional times for Shorts only to reach ~8 shorts daily
-SHORTS_ONLY_TIMES = ["07:00", "11:00", "13:00", "17:00", "19:00"]
+# Shorts only to reach frequent uploads daily (starting 9 AM)
+SHORTS_ONLY_TIMES = ["11:00", "13:00", "17:00", "19:00"]
 
 # ─── OUTPUT PATHS ────────────────────────────────────────
 OUTPUT_DIR      = "output"
