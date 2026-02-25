@@ -1,6 +1,6 @@
 """
 main.py — AI Faceless YouTube Channel Automation Bot
-═══════════════════════════════════════════════════════════════
+===============================================================
 Pipeline:
   1. Research trending AI topics (Google Trends + YouTube)
   2. Claude AI picks best topic + writes SEO content + script
@@ -36,9 +36,9 @@ from config.settings import (
 )
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  LOGGING & FFMPEG SETUP
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 logging.basicConfig(
@@ -61,16 +61,16 @@ try:
         # Set for pydub
         from pydub import AudioSegment
         AudioSegment.converter = ffmpeg_exe
-        log.info(f"FFMPEG found → {ffmpeg_exe}")
+        log.info(f"FFMPEG found -> {ffmpeg_exe}")
 except ImportError:
     log.warning("imageio-ffmpeg not installed, ffmpeg might not be found")
 except Exception as e:
     log.warning(f"Error setting FFMPEG path: {e}")
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  CORE PIPELINE
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = None) -> dict | None:
     """
@@ -79,34 +79,34 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = 
     """
     job_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     log.info("=" * 60)
-    log.info(f"  AI YouTube Bot — Job {job_id}")
+    log.info(f"  AI YouTube Bot - Job {job_id}")
     log.info("=" * 60)
 
     result = {"job_id": job_id, "status": "started", "timestamp": datetime.now().isoformat()}
 
     try:
-        # ── PHASE 1: RESEARCH ──────────────────────────────────
+        # -- PHASE 1: RESEARCH ----------------------------------
         from modules.researcher import run_research
-        content = run_research(custom_topic=topic)
+        content = run_research(custom_topic=topic, shorts_only=shorts_only)
 
-        log.info(f"\n{'─'*50}")
+        log.info(f"\n{'-'*50}")
         log.info(f"  TOPIC   : {content['chosen_topic']}")
         log.info(f"  TITLE   : {content['seo_title']}")
         log.info(f"  SCRIPT  : {len(content['script'].split())} words")
-        log.info(f"{'─'*50}\n")
+        log.info(f"{'-'*50}\n")
 
         # Save content to JSON for debugging/reference
         content_file = os.path.join(OUTPUT_DIR, f"{job_id}_content.json")
         with open(content_file, "w", encoding="utf-8") as f:
             json.dump(content, f, indent=2, ensure_ascii=False)
-        log.info(f"Content saved → {content_file}")
+        log.info(f"Content saved -> {content_file}")
 
-        # ── PHASE 2: AUDIO ─────────────────────────────────────
+        # -- PHASE 2: AUDIO -------------------------------------
         from modules.audio_generator import generate_audio
         audio_path = generate_audio(content["script"], job_id)
         result["audio_path"] = audio_path
 
-        # ── PHASE 3: VIDEO (Long) ──────────────────────────────
+        # -- PHASE 3: VIDEO (Long) ------------------------------
         from modules.video_creator import create_video, create_thumbnail
         video_path = None
         thumbnail_path = None
@@ -117,12 +117,12 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = 
             result["video_path"]     = video_path
             result["thumbnail_path"] = thumbnail_path
         
-        # ── PHASE 4: VIDEO (Shorts) ─────────────────────────────
+        # -- PHASE 4: VIDEO (Shorts) -----------------------------
         log.info("Generating Vertical Shorts version...")
         shorts_path = create_video(content, audio_path, job_id, is_shorts=True)
         result["shorts_path"] = shorts_path
 
-        # ── PHASE 5: UPLOAD ─────────────────────────────────────
+        # -- PHASE 5: UPLOAD -------------------------------------
         if dry_run:
             log.info("DRY RUN — skipping YouTube upload")
             result["status"] = "dry_run_complete"
@@ -166,9 +166,9 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = 
         return result
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  SCHEDULER
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def run_shorts_only():
     """Run pipeline but only for Shorts."""
@@ -196,9 +196,9 @@ def start_scheduler():
         time.sleep(30)
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  ENTRY POINT
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

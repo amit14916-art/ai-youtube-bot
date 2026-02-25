@@ -26,9 +26,9 @@ SCOPES = [
 TOKEN_FILE = "config/token.json"
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  AUTHENTICATION
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def get_authenticated_service():
     """Return an authorized YouTube API service object."""
@@ -54,13 +54,13 @@ def get_authenticated_service():
             f.write(creds.to_json())
 
     service = build("youtube", "v3", credentials=creds)
-    log.info("YouTube API authenticated ✓")
+    log.info("YouTube API authenticated [OK]")
     return service
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  VIDEO UPLOAD
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def upload_video(service, content: dict, video_path: str) -> str:
     """Upload video file. Returns YouTube video ID."""
@@ -109,13 +109,13 @@ def upload_video(service, content: dict, video_path: str) -> str:
             time.sleep(wait)
 
     video_id = response["id"]
-    log.info(f"Video uploaded! ID: {video_id}  →  https://youtu.be/{video_id}")
+    log.info(f"Video uploaded! ID: {video_id}  ->  https://youtu.be/{video_id}")
     return video_id
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  THUMBNAIL UPLOAD
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def upload_thumbnail(service, video_id: str, thumbnail_path: str):
     """Set custom thumbnail for a video."""
@@ -123,14 +123,14 @@ def upload_thumbnail(service, video_id: str, thumbnail_path: str):
     try:
         media = MediaFileUpload(thumbnail_path, mimetype="image/jpeg")
         service.thumbnails().set(videoId=video_id, media_body=media).execute()
-        log.info(f"Thumbnail set for video {video_id} ✓")
+        log.info(f"Thumbnail set for video {video_id} [OK]")
     except Exception as e:
         log.warning(f"Thumbnail upload failed: {e}")
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  ADD VIDEO TO PLAYLIST (optional)
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def add_to_playlist(service, video_id: str, playlist_id: str):
     """Add video to a specific playlist."""
@@ -146,23 +146,24 @@ def add_to_playlist(service, video_id: str, playlist_id: str):
                 }
             },
         ).execute()
-        log.info(f"Added to playlist {playlist_id} ✓")
+        log.info(f"Added to playlist {playlist_id} [OK]")
     except Exception as e:
         log.warning(f"Playlist insert failed: {e}")
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  PUBLIC ENTRY POINT
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def upload_to_youtube(content: dict, video_path: str, thumbnail_path: str) -> str:
     """
     Full upload pipeline.
     Returns YouTube video URL.
     """
-    log.info("═══ Uploading to YouTube ═══")
+    log.info("=== Uploading to YouTube ===")
     service  = get_authenticated_service()
     video_id = upload_video(service, content, video_path)
-    upload_thumbnail(service, video_id, thumbnail_path)
+    if thumbnail_path and os.path.exists(thumbnail_path):
+        upload_thumbnail(service, video_id, thumbnail_path)
     url = f"https://youtu.be/{video_id}"
     return url

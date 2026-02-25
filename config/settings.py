@@ -13,6 +13,7 @@ GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "gsk_sWIxQGv2mYl33vCTN6bAWGdyb3FYw
 GROQ_MODEL        = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "YOUR_ANTHROPIC_API_KEY")
+OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "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")
 
 # ─── YOUTUBE DATA API v3 ─────────────────────────────────
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s")
@@ -26,6 +27,20 @@ GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "56147179e87e648f
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "sk_b00fac47a3960642fbd00a014066d0a78b10cc681dcf4f74")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "NFG5qt843uXKj4pFvR7C") # Host A (Adam)
 ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2", "G0yjIg3xY8gEJZkHpjVm") # Host B
+
+# ─── TTS SETTINGS ──────────────────────────────────────────
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge") # options: elevenlabs, openai, edge
+EDGE_VOICE_A = "en-US-AndrewNeural"
+EDGE_VOICE_B = "en-US-EmmaNeural"
+OPENAI_VOICE_A = "onyx" # Deep
+OPENAI_VOICE_B = "nova" # Engaging
+
+# ─── STOCK FOOTAGE (Pexels) ─────────────────────────────
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N")
+
+# ─── NOTIFICATIONS (WhatsApp via CallmeBot) ──────────────
+WHATSAPP_PHONE = os.getenv("WHATSAPP_PHONE", "")
+WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY", "")
 
 # ─── VIDEO SETTINGS ──────────────────────────────────────
 VIDEO_WIDTH  = 1920
@@ -52,7 +67,7 @@ TRENDS_GEO = "US"
 
 # ─── YOUTUBE UPLOAD SETTINGS ─────────────────────────────
 CATEGORY_ID    = "28"        # 28 = Science & Technology
-PRIVACY_STATUS = "private"    # public | private | unlisted
+PRIVACY_STATUS = "public"    # public | private | unlisted
 TAGS_EXTRA     = ["AI", "artificial intelligence", "tech", "2025", "ChatGPT",
                    "machine learning", "deep learning", "future of AI"]
 DEFAULT_LANGUAGE = "en"
@@ -63,11 +78,11 @@ DEFAULT_LANGUAGE = "en"
 UPLOAD_HOUR   = 9
 UPLOAD_MINUTE = 0
 
-# 3 times for Long + Short
+# 3 times for Long + Short (Total 3 Long, 3 Shorts)
 UPLOAD_TIMES = ["09:00", "15:00", "21:00"]
 
-# Shorts only to reach frequent uploads daily (starting 9 AM)
-SHORTS_ONLY_TIMES = ["11:00", "13:00", "17:00", "19:00"]
+# 3 more Shorts only (Total 3 more Shorts = 6 Shorts total daily)
+SHORTS_ONLY_TIMES = ["12:00", "18:00", "23:00"]
 
 # ─── OUTPUT PATHS ────────────────────────────────────────
 OUTPUT_DIR      = "output"

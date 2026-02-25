@@ -23,7 +23,7 @@ def generate_ai_image(prompt: str, job_id: str, index: int, width: int = 1920, h
         # Actually, different prompt per slide is better.
         
         # We can add a "style" suffix to keep it cinematic
-        full_prompt = f"{clean_prompt}, cinematic, 4k, photorealistic, premium tech aesthetic, blurred background style"
+        full_prompt = f"{clean_prompt}, cinematic lighting, 8k resolution, highly detailed, professional photography, premium tech aesthetic, clean sharp focus, bokeh background, dramatic atmosphere"
         
         url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(full_prompt)}?width={width}&height={height}&seed={index}"
         

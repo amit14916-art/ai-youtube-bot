@@ -13,6 +13,8 @@ requests>=2.31.0                   # HTTP client
 gTTS>=2.5.1                        # Free Google TTS (fallback)
 pydub>=0.25.1                      # Audio processing / stitching
 elevenlabs>=1.0.0                  # Premium TTS
+edge-tts>=6.1.0                    # Free high-quality Microsoft voices
+openai>=1.0.0                      # OpenAI TTS support
 
 # ── Video Creation ────────────────────────────────────────────
 moviepy>=1.0.3                     # Video editing / composition

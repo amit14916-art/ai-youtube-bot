@@ -41,19 +41,20 @@ from config.settings import (
     NICHE,
 )
 from modules.asset_generator import generate_ai_image
+from modules.pexels_manager import get_stock_video
 
 log = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  SLIDE CONTENT EXTRACTION
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def script_to_slides(script: str, seo_title: str) -> list[str]:
     """
-    Break podcast script into slide-sized chunks, keeping host labels.
+    Break podcast script into small, punchy chunks for dynamic captions.
     """
     import re
-    # Match the dialogue parts
+    # Split by Host turns
     lines = re.split(r'(Host [AB]:)', script)
     
     slides = [seo_title.upper()] # Title slide
@@ -65,25 +66,20 @@ def script_to_slides(script: str, seo_title: str) -> list[str]:
         if item in ["Host A:", "Host B:"]:
             current_host = item
         else:
-            # For each host's turn, break into readable sub-chunks if very long
-            sentences = re.split(r'(?<=[.!?])\s+', item)
-            chunk = ""
-            for s in sentences:
-                if len(chunk.split()) + len(s.split()) > 25: # Shorter chunks for better visuals
-                    slides.append(f"{current_host} {chunk.strip()}")
-                    chunk = s
-                else:
-                    chunk += " " + s
-            if chunk:
-                slides.append(f"{current_host} {chunk.strip()}")
+            # Split into very short visual chunks (5-8 words) for "Hormozi" style captions
+            words = item.split()
+            chunk_size = 6
+            for i in range(0, len(words), chunk_size):
+                chunk = " ".join(words[i:i + chunk_size])
+                slides.append(f"{current_host} {chunk}")
 
-    slides.append("LIKE  •  SUBSCRIBE  •  TURN ON NOTIFICATIONS")
+    slides.append("LIKE  •  SUBSCRIBE  •  AI NEWS DAILY")
     return slides
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  KEN BURNS EFFECT (SMOOTH ZOOM)
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def apply_ken_burns(clip, duration):
     """Apply a smooth zoom effect to an ImageClip."""
@@ -100,102 +96,116 @@ def apply_ken_burns(clip, duration):
     return clip.with_effects([vfx.Resize(effect)])
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  SLIDE IMAGE OVERLAY RENDERER
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def render_slide_overlay(text: str, w: int, h: int, is_title: bool = False, is_shorts: bool = False) -> Image.Image:
-    """Render a transparent PIL image for text overlays."""
+    """Render a premium caption overlay (no boxes, bold modern style)."""
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    draw_overlay = ImageDraw.Draw(overlay)
+    draw = ImageDraw.Draw(img)
 
     # Detect Host
-    host_color = (100, 200, 255) # Default
+    host_color = (255, 255, 255)
     host_label = ""
     if text.startswith("Host A:"):
         host_label = "HOST A"
         text = text.replace("Host A:", "").strip()
-        host_color = (0, 255, 255) # Cyan
+        host_color = (0, 255, 100) # Neon Green for Host A
     elif text.startswith("Host B:"):
         host_label = "HOST B"
         text = text.replace("Host B:", "").strip()
-        host_color = (255, 100, 255) # Magenta
+        host_color = (255, 100, 0) # Neon Orange for Host B
     
-    # Scale font sizes for Shorts vs Landscape
-    scale_factor = 0.8 if is_shorts else 1.0
+    # Scale font sizes (Bigger for captions)
+    scale_factor = 1.0 if is_shorts else 1.2
+    caption_size = int(85 * scale_factor)
+    if is_title: caption_size = int(120 * scale_factor)
     
     try:
-        title_size = int(110 * scale_factor)
-        caption_size = int(75 * scale_factor)
-        label_size = int(45 * scale_factor)
-        font_main = ImageFont.truetype(FONT_PATH, title_size if is_title else caption_size)
-        font_host = ImageFont.truetype(FONT_PATH, label_size)
+        font_main = ImageFont.truetype(FONT_PATH, caption_size)
+        font_host = ImageFont.truetype(FONT_PATH, int(40 * scale_factor))
     except Exception:
         font_main = ImageFont.load_default()
         font_host = font_main
 
-    # ─── DRAW TEXT (Subtitles Style) ───
-    max_width_chars = 20 if is_shorts else (30 if is_title else 45)
-    lines = textwrap.wrap(text, width=max_width_chars)
-    line_h = (title_size if is_title else caption_size) + 15
+    # --- DRAW TEXT (Premium Subtitles Style) ---
+    words = text.split()
+    lines = []
+    # Dynamic word grouping for impact
+    n = 2 if is_shorts else 3
+    for i in range(0, len(words), n):
+        lines.append(" ".join(words[i:i+n]))
+        
+    line_h = caption_size + 20
     total_h = line_h * len(lines)
     
-    # Vertically center for both
-    y = (h - total_h) // 2
-    if not is_shorts and not is_title:
-        y += (h // 4) # Lower third for long landscape videos
+    # Position: Bottom-center for Shorts, Middle-bottom for Landscape
+    if is_shorts:
+        y = h - total_h - 250
+    else:
+        y = h - total_h - 200
 
-    # Semi-transparent box for readability
-    padding = 40
-    box_w = int(w * 0.9) if is_shorts else int(w * 0.7)
-    box_x_start = (w - box_w) // 2
-    
-    if not is_title and len(text) > 10:
-        draw_overlay.rounded_rectangle(
-            [box_x_start, y - padding, box_x_start + box_w, y + total_h + padding],
-            radius=20,
-            fill=(0, 0, 0, 160)
-        )
-        img = Image.alpha_composite(img, overlay)
-
-    draw = ImageDraw.Draw(img)
     for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=font_main)
-        lw = bbox[2] - bbox[0]
-        x = (w - lw) // 2
+        line_words = line.upper().split()
         
-        # Shadow
-        draw.text((x + 2, y + 2), line, font=font_main, fill=(0, 0, 0, 200))
+        # 1. Background Capsule (Semi-transparent dark backdrop)
+        full_line_text = " ".join(line_words)
+        bbox_full = draw.textbbox((0, 0), full_line_text, font=font_main)
+        lw = bbox_full[2] - bbox_full[0]
+        padding = 40
         
-        # Main text
-        color = (255, 220, 50) if is_title else (255, 255, 255)
-        draw.text((x, y), line, font=font_main, fill=color)
+        bx1, by1 = (w - lw) // 2 - padding, y - 10
+        bx2, by2 = (w + lw) // 2 + padding, y + line_h - 10
+        
+        # Draw rounded rectangle for text backing
+        draw.rounded_rectangle([bx1, by1, bx2, by2], radius=20, fill=(0, 0, 0, 160))
+        
+        cur_x = (w - lw) // 2
+        
+        for i, word in enumerate(line_words):
+            # Highlight Logic (Agentic style)
+            highlights = ["AI", "MCP", "DATA", "ROBOT", "GPT", "OPENAI", "ANTHROPIC", "TECH", "FUTURE", "IMPACT", "WORLD", "AUTO", "AGENT", "MONEY", "SCALE"]
+            is_highlight = is_title or word in highlights or word.endswith("S")
+            
+            color = (0, 255, 127) if is_highlight else (255, 255, 255) # Spring Green or White
+            if is_title: color = (255, 215, 0) # Gold
+            
+            # Simple soft drop shadow
+            draw.text((cur_x + 3, y + 3), word, font=font_main, fill=(0, 0, 0, 200))
+            draw.text((cur_x, y), word, font=font_main, fill=color)
+            
+            # Move x
+            bbox_word = draw.textbbox((0, 0), word, font=font_main)
+            word_w = bbox_word[2] - bbox_word[0]
+            cur_x += word_w + 25 # spacing
+            
         y += line_h
 
-    # ─── HOST LABEL ───
+    # --- PREMIUM HOST INDICATOR ---
     if host_label:
-        label_text = f"🎙️ {host_label}"
-        lx = 100 if not is_shorts else (w - 300) // 2
-        ly = 150
-        draw.text((lx + 2, ly + 2), label_text, font=font_host, fill=(0, 0, 0, 180))
-        draw.text((lx, ly), label_text, font=font_host, fill=host_color)
+        label = f"🎙️ {host_label}"
+        lx, ly = (100, 100) if not is_shorts else (w // 2 - 150, 200)
+        # Glow effect
+        for r in range(1, 4):
+            draw.text((lx, ly), label, font=font_host, fill=(0,0,0,80))
+        draw.text((lx, ly), label, font=font_host, fill=host_color)
 
-    # ─── BRANDING ───
+    # Brander
     if not is_shorts:
         brand = f"@{NICHE}"
-        bbox = draw.textbbox((0, 0), brand, font=font_host)
-        draw.text((w - (bbox[2]-bbox[0]) - 100, h - 100), brand, font=font_host, fill=(255,255,255, 80))
+        draw.text((w - 250, h - 80), brand, font=font_host, fill=(255,255,255, 80))
 
     return img
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  MAIN VIDEO BUILDER
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = False) -> str:
-    """Build high-quality MP4 video with AI graphics."""
-    log.info(f"═══ Building {'Short' if is_shorts else 'Long'} Video ═══")
+    """Build high-quality MP4 video with optimized memory usage."""
+    import gc
+    log.info(f"=== Building {'Short' if is_shorts else 'Long'} Video ===")
     
     cw, ch = (1080, 1920) if is_shorts else (VIDEO_WIDTH, VIDEO_HEIGHT)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -206,7 +216,7 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
     voice = AudioFileClip(audio_path)
     if is_shorts and voice.duration > 60:
         log.info("Trimming voiceover to 60s for Shorts...")
-        voice = voice.subclip(0, 59.5) # Leave a tiny buffer
+        voice = voice.subclipped(0, 59.5)
         
     total_duration = voice.duration
     log.info(f"Voiceover duration: {total_duration:.1f}s")
@@ -214,71 +224,93 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
     # 2. Extract slides
     all_slides = script_to_slides(content["script"], content["seo_title"])
     
-    # If shorts, we only take the first few slides that fit in 60s
     if is_shorts:
-        # Roughly 2-3 seconds per slide for high engagement
-        slide_duration = 3.5 
+        # For shorts, we force a specific duration to keep it fast
+        slide_duration = 1.5 
         max_slides = int(total_duration / slide_duration)
         slides = all_slides[:max_slides]
-        # Re-calculate exact slide duration to fill time
         slide_duration = total_duration / len(slides)
     else:
         slides = all_slides
         slide_duration = total_duration / len(slides)
     
     # 3. Handle Graphics
-    hints = content.get("visual_hints", [])
-    if not hints: hints = [content["chosen_topic"]]
+    max_imgs = min(len(slides), 30 if not is_shorts else 15)
+    log.info(f"Using {max_imgs} background images for {len(slides)} slides...")
     
-    bg_images = []
-    # Generate background images - limit to 15 to save time/resources
-    max_imgs = min(len(slides), 15)
-    log.info(f"Generating up to {max_imgs} AI graphics...")
+    # 4. Create Clips in Batches (to save memory)
+    final_clips = []
     
-    for i in range(len(slides)):
-        if i < max_imgs:
-            if i == 0: 
-                prompt = f"Futuristic cinematic title screen for {content['chosen_topic']}"
-            else:
-                h = hints[i % len(hints)]
-                prompt = f"3D render, high quality, tech: {h}"
-            
-            img_path = generate_ai_image(prompt, job_id, i, width=cw, height=ch)
-            bg_images.append(img_path)
-            import time
-            time.sleep(1.5) # Be polite to Pollinations.ai
-        else:
-            # Re-use generated images
-            bg_images.append(bg_images[i % max_imgs])
-
-    # 4. Create Clips
-    slide_clips = []
-    for i, text in enumerate(slides):
-        # Background Clip
-        img_path = bg_images[i]
-        if img_path and os.path.exists(img_path):
+    # Group slides by background to reduce CompositeVideoClip count
+    # Each background will last for (slides_per_bg * slide_duration) seconds
+    slides_per_bg = max(1, len(slides) // max_imgs)
+    
+    for bg_idx in range(0, len(slides), slides_per_bg):
+        current_slides = slides[bg_idx : bg_idx + slides_per_bg]
+        total_bg_duration = len(current_slides) * slide_duration
+        
+        # Background: Try Real Stock Footage first, then AI Image
+        img_idx = (bg_idx // slides_per_bg)
+        hints = content.get("visual_hints", [content["chosen_topic"]])
+        h = hints[img_idx % len(hints)]
+        
+        orientation = "portrait" if is_shorts else "landscape"
+        log.info(f"Finding footage for sector {img_idx}: {h}")
+        
+        # Search Pexels for a video clip (only for tech/topic slides)
+        stock_path = ""
+        if img_idx > 0: # Title always AI Cinematic
+             stock_path = get_stock_video(h, orientation=orientation, min_duration=int(total_bg_duration))
+        
+        if stock_path and os.path.exists(stock_path):
             try:
-                # Load with PIL first for robustness
-                pil_img = Image.open(img_path).convert("RGB")
-                bg = ImageClip(np.array(pil_img)).with_duration(slide_duration).with_fps(VIDEO_FPS)
+                log.info(f"Using stock footage: {stock_path}")
+                bg = VideoFileClip(stock_path).with_duration(total_bg_duration).with_fps(VIDEO_FPS)
+                # Resize and Crop to fill screen
+                target_ratio = cw / ch
+                current_ratio = bg.w / bg.h
+                if current_ratio > target_ratio:
+                    bg = bg.with_effects([vfx.Resize(height=ch)]).with_position(("center", "center"))
+                else:
+                    bg = bg.with_effects([vfx.Resize(width=cw)]).with_position(("center", "center"))
             except Exception as e:
-                log.error(f"Failed to load image {img_path}: {e}")
-                bg = ColorClip((cw, ch), color=(20, 20, 30)).with_duration(slide_duration)
-        else:
-            bg = ColorClip((cw, ch), color=(20, 20, 30)).with_duration(slide_duration)
+                log.error(f"Stock footage load failed: {e}")
+                stock_path = "" # Fallback
         
-        # Transitions
-        bg = apply_ken_burns(bg, slide_duration)
-        
-        # Text
-        overlay_img = render_slide_overlay(text, cw, ch, is_title=(i == 0), is_shorts=is_shorts)
-        txt = ImageClip(np.array(overlay_img)).with_duration(slide_duration).with_fps(VIDEO_FPS)
-        
-        composite = CompositeVideoClip([bg, txt.with_position("center")])
-        slide_clips.append(composite)
+        if not stock_path:
+            # Fallback to AI Image
+            if img_idx == 0:
+                prompt = f"Futuristic cinematic title screen, {content['chosen_topic']}, high tech, 4k"
+            else:
+                prompt = f"Cinematic AI visual: {h}, macro tech, futuristic, high quality"
+                
+            img_path = generate_ai_image(prompt, job_id, img_idx, width=cw, height=ch)
+            if img_path and os.path.exists(img_path):
+                pil_img = Image.open(img_path).convert("RGB")
+                bg = ImageClip(np.array(pil_img)).with_duration(total_bg_duration).with_fps(VIDEO_FPS)
+                bg = apply_ken_burns(bg, total_bg_duration)
+            else:
+                bg = ColorClip((cw, ch), color=(20, 20, 30)).with_duration(total_bg_duration)
 
-    # 5. Concatenate & Audio
-    final_video = concatenate_videoclips(slide_clips, method="compose")
+        # Overlays for this background
+        text_clips = []
+        for s_idx, text in enumerate(current_slides):
+            overlay_img = render_slide_overlay(text, cw, ch, is_title=(bg_idx == 0 and s_idx == 0), is_shorts=is_shorts)
+            txt = ImageClip(np.array(overlay_img)).with_duration(slide_duration).with_start(s_idx * slide_duration).with_fps(VIDEO_FPS)
+            text_clips.append(txt.with_position("center"))
+        
+        # Composite text clips over the single background clip
+        batch_composite = CompositeVideoClip([bg] + text_clips)
+        final_clips.append(batch_composite)
+        
+        # Cleanup temporary clips to free memory immediately
+        # We can't close bg or text_clips yet because they are used in batch_composite
+        # but we can call gc
+        gc.collect()
+
+        # 5. Concatenate & Audio
+    # method="compose" is slower but safer for different sizes and allows transitions
+    final_video = concatenate_videoclips(final_clips, method="compose", padding=-0.5)
     
     # BGM
     bgm_path = os.path.join(ASSETS_DIR, "bgm.mp3")
@@ -288,7 +320,6 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
             bgm = bgm.with_effects([vfx.AudioLoop(duration=total_duration)])
             bgm = bgm.with_volume(BACKGROUND_MUSIC_VOLUME)
             final_video = final_video.with_audio(CompositeAudioClip([voice, bgm]))
-            log.info("BGM mixed in")
         except Exception as e:
             log.warning(f"BGM mixing failed: {e}")
             final_video = final_video.with_audio(voice)
@@ -305,11 +336,17 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         logger=None,
         threads=4
     )
+    
+    # Cleanup memory
+    for c in final_clips: c.close()
+    final_video.close()
+    gc.collect()
+    
     return output_path
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  THUMBNAIL GENERATOR
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def create_thumbnail(content: dict, job_id: str) -> str:
     """Generate a high-quality branded thumbnail."""

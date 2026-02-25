@@ -24,6 +24,7 @@ from config.settings import (
     TRENDS_GEO,
     YOUTUBE_API_KEY,
 )
+from modules.history_manager import get_recent_topics, save_topic_to_history
 
 log = logging.getLogger(__name__)
 
@@ -37,9 +38,9 @@ def get_llm_client():
         return Groq(api_key=GROQ_API_KEY)
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  1. GOOGLE TRENDS
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def get_google_trending_topics() -> list[str]:
     """Pull the top trending AI-related keywords from Google Trends."""
@@ -65,22 +66,30 @@ def get_google_trending_topics() -> list[str]:
         topics.extend(ai_rt[:5])
 
         unique = list(dict.fromkeys(topics))  # preserve order, remove dupes
-        log.info(f"Google Trends → {len(unique)} topics found")
+        log.info(f"Google Trends -> {len(unique)} topics found")
         return unique[:RESEARCH_TOPICS * 3]
     except Exception as e:
-        log.warning(f"Google Trends error: {e} — using fallback list")
-        return [
-            "GPT-5 release date",
-            "AI replacing jobs 2025",
-            "Google Gemini Ultra 2",
-            "Open source LLMs 2025",
-            "AI video generation tools",
+        log.warning(f"Google Trends error: {e} — using dynamic fallback list")
+        import random
+        base = [
+            "GPT-5 release date leaks",
+            "AI agents replacing humans",
+            "Sora AI video update",
+            "Groq chip architecture",
+            "Anthropic Claude 4 news",
+            "Google Gemini 2.0 Pro",
+            "Open source Llama 4 rumors",
+            "Humanoid robots with AI",
+            "AI in healthcare 2025",
+            "Web3 and AI integration"
         ]
+        random.shuffle(base)
+        return base[:5]
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  2. YOUTUBE TRENDING SEARCH
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def get_youtube_trending_ai(max_results: int = 10) -> list[dict]:
     """Query YouTube for the most-viewed recent AI videos."""
@@ -110,16 +119,16 @@ def get_youtube_trending_ai(max_results: int = 10) -> list[dict]:
             }
             for i in items
         ]
-        log.info(f"YouTube search → {len(results)} trending videos found")
+        log.info(f"YouTube search -> {len(results)} trending videos found")
         return results
     except Exception as e:
         log.warning(f"YouTube search error: {e}")
         return []
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  3. GOOGLE WEB SEARCH (for article content)
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def google_search(query: str, num: int = 5) -> list[dict]:
     """Search the web and return top result snippets."""
@@ -141,14 +150,15 @@ def google_search(query: str, num: int = 5) -> list[dict]:
         return []
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  4. PICK BEST TOPIC + GENERATE SEO META + SCRIPT
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
 def pick_best_topic_and_generate(
     google_topics: list[str],
     youtube_videos: list[dict],
-    custom_topic: Optional[str] = None
+    custom_topic: Optional[str] = None,
+    shorts_only: bool = False
 ) -> dict:
     """
     Use Claude to:
@@ -164,10 +174,16 @@ def pick_best_topic_and_generate(
         top_instruction = f"CREATE A VIDEO SCRIPT ABOUT THIS SPECIFIC TOPIC: '{custom_topic}'."
         data_context = f"Based on this topic: {custom_topic}"
     else:
-        top_instruction = "Pick the single best video topic from the trending data below."
+        recent = get_recent_topics()
+        recent_str = ", ".join(recent) if recent else "None"
+        top_instruction = f"Pick the single best UNUSED video topic. AVOID these recently used topics: [{recent_str}]. Pick something fresh."
         data_context = f"TRENDING DATA:\n=== Google Trends ===\n{gt_topics}\n\n=== Top YouTube Videos ===\n{yt_titles}"
 
-    prompt = f"""You are an expert YouTube content strategist. Your primary goal is to provide an EXTREMELY DETAILED, HIGH-LENGTH deep dive podcast script that MUST exceed {SCRIPT_WORDS} words.
+    target_words = 180 if shorts_only else SCRIPT_WORDS
+    
+    prompt = f"""You are an expert YouTube content strategist. Your primary goal is to provide a {'punchy Vertical Short script' if shorts_only else 'detailed deep-dive podcast script'}.
+    
+    Target Length: {target_words} words.
     
     {top_instruction}
 
@@ -182,7 +198,7 @@ YOUR TASKS — respond ONLY in valid JSON with these exact keys:
   "seo_description": "800-1000 chars hook + description",
   "tags": ["tag1","tag2"],
   "thumbnail_text": "3-6 bold words for thumbnail",
-  "script": "A massive, deep-dive podcast dialogue between Host A (Expert) and Host B (Curious). This MUST be at least {SCRIPT_WORDS} words long. Go into extreme detail about the history, technology, current news, and future implications. Elaborate extensively on every point to ensure a 7-8 minute duration. Use natural conversation, but keep it packed with information. Format only as 'Host A: ...' and 'Host B: ...'.",
+  "script": "{'Massive podcast script' if not shorts_only else 'Punchy, high-energy scroll-stopping script'}. MUST be {'at least' if not shorts_only else 'BETWEEN 150 AND 180'} words long. {'Structure as a back-and-forth between Host A and Host B' if not shorts_only else 'Host A and Host B talking fast'}. Format only as 'Host A: ...' and 'Host B: ...'. NO STAGE DIRECTIONS.",
   "visual_hints": ["keyword1", "keyword2", "keyword3"]
 }}
 
@@ -225,16 +241,19 @@ Be engaging, use human-like interruptions (like "Wait, so you're saying...", "Ex
 
     data = json.loads(match.group())
     log.info(f"Topic chosen: {data['chosen_topic']}")
+    
+    # Save to history
+    save_topic_to_history(data['chosen_topic'])
     return data
 
 
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 #  PUBLIC ENTRY POINT
-# ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------
 
-def run_research(custom_topic: Optional[str] = None) -> dict:
+def run_research(custom_topic: Optional[str] = None, shorts_only: bool = False) -> dict:
     """Full research pipeline. Returns content dict."""
-    log.info("═══ Starting Research Phase ═══")
+    log.info("=== Starting Research Phase ===")
     
     if custom_topic:
         log.info(f"Using custom topic: {custom_topic}")
@@ -245,5 +264,5 @@ def run_research(custom_topic: Optional[str] = None) -> dict:
         google_topics  = get_google_trending_topics()
         youtube_videos = get_youtube_trending_ai()
         
-    content = pick_best_topic_and_generate(google_topics, youtube_videos, custom_topic=custom_topic)
+    content = pick_best_topic_and_generate(google_topics, youtube_videos, custom_topic=custom_topic, shorts_only=shorts_only)
     return content
