@@ -29,7 +29,7 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "NFG5qt843uXKj4pFvR7C") #
 ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2", "G0yjIg3xY8gEJZkHpjVm") # Host B
 
 # ─── TTS SETTINGS ──────────────────────────────────────────
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "playht") # options: playht, elevenlabs, openai, edge
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge") # options: playht, elevenlabs, openai, edge
 EDGE_VOICE_A = "en-US-AndrewNeural"
 EDGE_VOICE_B = "en-US-EmmaNeural"
 OPENAI_VOICE_A = "onyx" # Deep
