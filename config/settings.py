@@ -29,14 +29,21 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "NFG5qt843uXKj4pFvR7C") #
 ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2", "G0yjIg3xY8gEJZkHpjVm") # Host B
 
 # ─── TTS SETTINGS ──────────────────────────────────────────
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "elevenlabs") # options: elevenlabs, openai, edge
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "playht") # options: playht, elevenlabs, openai, edge
 EDGE_VOICE_A = "en-US-AndrewNeural"
 EDGE_VOICE_B = "en-US-EmmaNeural"
 OPENAI_VOICE_A = "onyx" # Deep
 OPENAI_VOICE_B = "nova" # Engaging
 
-# ─── IMAGE GENERATION (FAL.AI) ───────────────────────────
+# ─── PLAYHT (Ultra-realistic TTS) ────────────────────────
+PLAYHT_USER_ID = os.getenv("PLAYHT_USER_ID", "")
+PLAYHT_API_KEY = os.getenv("PLAYHT_API_KEY", "")
+PLAYHT_VOICE_ID = os.getenv("PLAYHT_VOICE_ID", "s3://voice-cloning-zero-shot/d9ff78ba-d016-47f6-b0ef-dd630f59414e/female-cs/manifest.json") # Default Host A (Female)
+PLAYHT_VOICE_ID_2 = os.getenv("PLAYHT_VOICE_ID_2", "s3://voice-cloning-zero-shot/775ae416-49bb-4fb6-bd45-740f205d20a1/jason/manifest.json") # Default Host B (Male)
+
+# ─── IMAGE/VIDEO GENERATION (FAL.AI) ─────────────────────
 FAL_API_KEY = os.getenv("FAL_API_KEY", "80820a4b-404e-4571-821a-b44efebfebb6:e1cc228267b3a2b2275b04e932ad6319")
+USE_AI_VIDEO_BROLL = True # Set to True to generate actual AI Video clips instead of static images
 
 # ─── STOCK FOOTAGE (Pexels) ─────────────────────────────
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N")
@@ -81,8 +88,8 @@ DEFAULT_LANGUAGE = "en"
 UPLOAD_HOUR   = 9
 UPLOAD_MINUTE = 0
 
-# 2 times for Long + Short (Total 2 Long, 2 Shorts)
-UPLOAD_TIMES = ["09:00", "19:00"]
+# 2 times for Long
+LONG_ONLY_TIMES = ["09:00", "19:00"]
 
 # 1 more Short only (Total 1 more Short = 3 Shorts total daily)
 SHORTS_ONLY_TIMES = ["14:00"]

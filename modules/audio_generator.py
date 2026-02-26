@@ -13,6 +13,10 @@ from config.settings import (
     ELEVENLABS_API_KEY,
     ELEVENLABS_VOICE_ID,
     ELEVENLABS_VOICE_ID_2,
+    PLAYHT_API_KEY,
+    PLAYHT_USER_ID,
+    PLAYHT_VOICE_ID,
+    PLAYHT_VOICE_ID_2,
     OPENAI_API_KEY,
     TTS_PROVIDER,
     EDGE_VOICE_A,
@@ -59,6 +63,45 @@ def tts_elevenlabs(text: str, output_path: str, voice_id: str = None) -> bool:
         return True
     except Exception as e:
         log.warning(f"ElevenLabs failed for voice {vid}: {e}")
+        return False
+
+
+# -----------------------------------------------------------------
+#  PLAYHT (Ultra-realistic)
+# -----------------------------------------------------------------
+
+def tts_playht(text: str, output_path: str, voice_id: str = None) -> bool:
+    """Generate audio via PlayHT API. Returns True on success."""
+    if not PLAYHT_API_KEY or not PLAYHT_USER_ID:
+        return False
+    vid = voice_id or PLAYHT_VOICE_ID
+    try:
+        import requests
+        url = "https://api.play.ht/api/v2/tts/stream"
+        headers = {
+            "accept": "audio/mpeg",
+            "content-type": "application/json",
+            "AUTHORIZATION": f"{PLAYHT_API_KEY}",
+            "X-USER-ID": f"{PLAYHT_USER_ID}"
+        }
+        payload = {
+            "text": text,
+            "voice": vid,
+            "output_format": "mp3",
+            "voice_engine": "PlayHT2.0" # Make sure to use the latest engine
+        }
+        resp = requests.post(url, headers=headers, json=payload, timeout=90)
+        resp.raise_for_status()
+        with open(output_path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+        vid_name = vid.split('/')[-2][:8] if '/' in vid else str(vid)[:8]
+        log.info(f"PlayHT audio ({vid_name}..) saved -> {output_path}")
+        return True
+    except Exception as e:
+        vid_name = vid.split('/')[-2][:8] if '/' in vid else str(vid)[:8]
+        log.warning(f"PlayHT failed for voice {vid_name}: {e}")
         return False
 
 
@@ -171,6 +214,8 @@ def parse_podcast_script(script: str) -> list[dict]:
         v1, v2 = OPENAI_VOICE_A, OPENAI_VOICE_B
     elif TTS_PROVIDER == "elevenlabs":
         v1, v2 = ELEVENLABS_VOICE_ID, ELEVENLABS_VOICE_ID_2
+    elif TTS_PROVIDER == "playht":
+        v1, v2 = PLAYHT_VOICE_ID, PLAYHT_VOICE_ID_2
     else: # edge
         v1, v2 = EDGE_VOICE_A, EDGE_VOICE_B
         
@@ -210,7 +255,9 @@ def generate_audio(script: str, job_id: str) -> str:
         cp = output_path.replace(".mp3", f"_chunk{i}.mp3")
         
         ok = False
-        if TTS_PROVIDER == "elevenlabs" and ELEVENLABS_API_KEY:
+        if TTS_PROVIDER == "playht" and PLAYHT_API_KEY:
+            ok = tts_playht(chunk["text"], cp, voice_id=chunk["voice_id"])
+        elif TTS_PROVIDER == "elevenlabs" and ELEVENLABS_API_KEY:
             ok = tts_elevenlabs(chunk["text"], cp, voice_id=chunk["voice_id"])
         elif TTS_PROVIDER == "openai" and OPENAI_API_KEY:
             ok = tts_openai(chunk["text"], cp, voice=chunk["voice_id"])

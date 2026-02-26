@@ -1,0 +1,43 @@
+{
+  "slides": [
+    {
+      "bgPath": "",
+      "isVideo": false,
+      "durationInFrames": 147,
+      "startFrame": 0,
+      "text": "The rise of AI-generated content is changing the media landscape, but at what cost?"
+    },
+    {
+      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_5828502_portrait.mp4",
+      "isVideo": true,
+      "durationInFrames": 179,
+      "startFrame": 147,
+      "text": "Exactly, with deepfakes and fake news on the rise, it's getting harder to distinguish fact from fiction."
+    },
+    {
+      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_18069831_portrait.mp4",
+      "isVideo": true,
+      "durationInFrames": 211,
+      "startFrame": 326,
+      "text": "That's mind-blowing, and it's not just limited to news, AI-generated content is being used in entertainment and marketing as well."
+    },
+    {
+      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_31939597_portrait.mp4",
+      "isVideo": true,
+      "durationInFrames": 200,
+      "startFrame": 537,
+      "text": "Wait, so you're saying that AI-generated content is a double-edged sword, it can be used for good or evil?"
+    },
+    {
+      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_13809349_portrait.mp4",
+      "isVideo": true,
+      "durationInFrames": 203,
+      "startFrame": 737,
+      "text": "Yes, and that's what makes it so dangerous, we need to be aware of the potential risks and consequences."
+    }
+  ],
+  "audioUrl": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/20260227_015044_voice.mp3",
+  "bgmUrl": "",
+  "wordTimings": [],
+  "isShorts": true
+}

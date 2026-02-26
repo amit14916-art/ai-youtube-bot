@@ -17,18 +17,6 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from moviepy import (
-    AudioFileClip,
-    CompositeAudioClip,
-    CompositeVideoClip,
-    ColorClip,
-    ImageClip,
-    TextClip,
-    VideoFileClip,
-    VideoClip,
-    concatenate_videoclips,
-    vfx
-)
 
 from config.settings import (
     ASSETS_DIR,
@@ -199,149 +187,149 @@ def render_slide_overlay(text: str, w: int, h: int, is_title: bool = False, is_s
     return img
 
 # -----------------------------------------------------------------
-#  MAIN VIDEO BUILDER
+#  MAIN VIDEO BUILDER (REMOTION BASED)
 # -----------------------------------------------------------------
 
 def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = False) -> str:
-    """Build high-quality MP4 video with optimized memory usage."""
-    import gc
-    log.info(f"=== Building {'Short' if is_shorts else 'Long'} Video ===")
+    """Build high-quality MP4 video using React Remotion engine."""
+    import json
+    import subprocess
+    from mutagen.mp3 import MP3
     
-    cw, ch = (1080, 1920) if is_shorts else (VIDEO_WIDTH, VIDEO_HEIGHT)
+    log.info(f"=== Building {'Short' if is_shorts else 'Long'} Video (Remotion) ===")
+    
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     suffix = "_shorts.mp4" if is_shorts else "_video.mp4"
     output_path = os.path.join(OUTPUT_DIR, f"{job_id}{suffix}")
+    
+    # 1. Get audio duration
+    try:
+        audio = MP3(audio_path)
+        total_duration = audio.info.length
+    except Exception as e:
+        log.error(f"Could not read audio duration: {e}")
+        total_duration = 60.0 # fallback
 
-    # 1. Load voiceover
-    voice = AudioFileClip(audio_path)
-    if is_shorts and voice.duration > 60:
-        log.info("Trimming voiceover to 60s for Shorts...")
-        voice = voice.subclipped(0, 59.5)
-        
-    total_duration = voice.duration
+    if is_shorts and total_duration > 60:
+         log.info("Warning: Audio is longer than 60s. For shorts, it should ideally be trimmed. Left as is for Remotion.")
+         
     log.info(f"Voiceover duration: {total_duration:.1f}s")
     
-    # 2. Extract slides
-    all_slides = script_to_slides(content["script"], content["seo_title"])
+    # 2. Extract word timings via Groq Whisper
+    from modules.transcriber import transcribe_audio_with_words
+    word_timings = transcribe_audio_with_words(audio_path)
     
-    if is_shorts:
-        # For shorts, we force a specific duration to keep it fast
-        slide_duration = 1.5 
-        max_slides = int(total_duration / slide_duration)
-        slides = all_slides[:max_slides]
-        slide_duration = total_duration / len(slides)
-    else:
-        slides = all_slides
-        slide_duration = total_duration / len(slides)
-    
-    # 3. Handle Graphics
-    max_imgs = min(len(slides), 30 if not is_shorts else 15)
-    log.info(f"Using {max_imgs} background images for {len(slides)} slides...")
-    
-    # 4. Create Clips in Batches (to save memory)
-    final_clips = []
-    
-    # Group slides by background to reduce CompositeVideoClip count
-    # Each background will last for (slides_per_bg * slide_duration) seconds
-    slides_per_bg = max(1, len(slides) // max_imgs)
-    
-    for bg_idx in range(0, len(slides), slides_per_bg):
-        current_slides = slides[bg_idx : bg_idx + slides_per_bg]
-        total_bg_duration = len(current_slides) * slide_duration
-        
-        # Background: Try Real Stock Footage first, then AI Image
-        img_idx = (bg_idx // slides_per_bg)
-        hints = content.get("visual_hints", [content["chosen_topic"]])
-        h = hints[img_idx % len(hints)]
-        
-        orientation = "portrait" if is_shorts else "landscape"
-        log.info(f"Finding footage for sector {img_idx}: {h}")
-        
-        # Search Pexels for a video clip (only for tech/topic slides)
-        stock_path = ""
-        if img_idx > 0: # Title always AI Cinematic
-             stock_path = get_stock_video(h, orientation=orientation, min_duration=int(total_bg_duration))
-        
-        if stock_path and os.path.exists(stock_path):
-            try:
-                log.info(f"Using stock footage: {stock_path}")
-                bg = VideoFileClip(stock_path).with_duration(total_bg_duration).with_fps(VIDEO_FPS)
-                # Resize and Crop to fill screen
-                target_ratio = cw / ch
-                current_ratio = bg.w / bg.h
-                if current_ratio > target_ratio:
-                    bg = bg.with_effects([vfx.Resize(height=ch)]).with_position(("center", "center"))
-                else:
-                    bg = bg.with_effects([vfx.Resize(width=cw)]).with_position(("center", "center"))
-            except Exception as e:
-                log.error(f"Stock footage load failed: {e}")
-                stock_path = "" # Fallback
-        
-        if not stock_path:
-            # Fallback to AI Image
-            if img_idx == 0:
-                prompt = f"Futuristic cinematic title screen, {content['chosen_topic']}, high tech, 4k"
-            else:
-                prompt = f"Cinematic AI visual: {h}, macro tech, futuristic, high quality"
-                
-            img_path = generate_ai_image(prompt, job_id, img_idx, width=cw, height=ch)
-            if img_path and os.path.exists(img_path):
-                pil_img = Image.open(img_path).convert("RGB")
-                bg = ImageClip(np.array(pil_img)).with_duration(total_bg_duration).with_fps(VIDEO_FPS)
-                bg = apply_ken_burns(bg, total_bg_duration)
-            else:
-                bg = ColorClip((cw, ch), color=(20, 20, 30)).with_duration(total_bg_duration)
+    fps = 30
+    total_frames = int(total_duration * fps)
 
-        # Overlays for this background
-        text_clips = []
-        for s_idx, text in enumerate(current_slides):
-            overlay_img = render_slide_overlay(text, cw, ch, is_title=(bg_idx == 0 and s_idx == 0), is_shorts=is_shorts)
-            txt = ImageClip(np.array(overlay_img)).with_duration(slide_duration).with_start(s_idx * slide_duration).with_fps(VIDEO_FPS)
-            text_clips.append(txt.with_position("center"))
-        
-        # Composite text clips over the single background clip
-        batch_composite = CompositeVideoClip([bg] + text_clips)
-        final_clips.append(batch_composite)
-        
-        # Cleanup temporary clips to free memory immediately
-        # We can't close bg or text_clips yet because they are used in batch_composite
-        # but we can call gc
-        gc.collect()
-
-    # 5. Concatenate & Audio
-    # Memory optimization: using method="chain" prevents huge RAM spikes,
-    # and all our clips are guaranteed to be the exact same dimensions!
-    final_video = concatenate_videoclips(final_clips, method="chain")
+    # 3. Handle Graphics via Director Agent
+    from modules.director_agent import generate_scene_data
+    from config.settings import USE_AI_VIDEO_BROLL
+    from modules.asset_generator import generate_ai_video
     
-    # BGM
+    raw_scenes = generate_scene_data(content["chosen_topic"], content["seo_title"], content["script"], is_shorts)
+    log.info(f"Director Agent created {len(raw_scenes)} dynamic scenes.")
+    
+    # Filter/Truncate for Shorts
+    if is_shorts and total_duration <= 60:
+         # Limit scenes if it's too long
+         pass
+
+    slide_data_list = []
+    
+    def to_file_url(path):
+        if not path: return ""
+        p = os.path.abspath(path).replace("\\", "/")
+        return f"file:///{p}"
+        
+    current_frame = 0
     bgm_path = os.path.join(ASSETS_DIR, "bgm.mp3")
-    if os.path.exists(bgm_path):
-        try:
-            bgm = AudioFileClip(bgm_path)
-            bgm = bgm.with_effects([vfx.AudioLoop(duration=total_duration)])
-            bgm = bgm.with_volume(BACKGROUND_MUSIC_VOLUME)
-            final_video = final_video.with_audio(CompositeAudioClip([voice, bgm]))
-        except Exception as e:
-            log.warning(f"BGM mixing failed: {e}")
-            final_video = final_video.with_audio(voice)
-    else:
-        final_video = final_video.with_audio(voice)
 
-    # 6. Render
-    log.info(f"Exporting to: {output_path}")
-    final_video.write_videofile(
-        output_path,
-        fps=VIDEO_FPS,
-        codec="libx264",
-        audio_codec="aac",
-        logger="bar",  # Enable progress bar so we can see if it hangs
-        threads=1      # Reduced from 4 to 1 to prevent Out-Of-Memory crashes
-    )
+    for idx, scene in enumerate(raw_scenes):
+        # Calculate duration based on words in this scene over total words
+        # (This is approximate; precise timing comes from word_timings in Remotion)
+        scene_word_count = max(len(scene["text"].split()), 1)
+        total_word_count = sum([max(len(s["text"].split()), 1) for s in raw_scenes])
+        bg_duration_sec = (scene_word_count / total_word_count) * total_duration
+        bg_frames = int(bg_duration_sec * fps)
+        
+        # Ensure we don't exceed total_frames due to rounding
+        if idx == len(raw_scenes) - 1:
+            bg_frames = total_frames - current_frame
+
+        h = scene["keyword"]
+        orientation = "portrait" if is_shorts else "landscape"
+        log.info(f"Finding footage for scene {idx}: {h}")
+        
+        stock_path = ""
+        is_video = False
+        
+        if idx > 0:
+             stock_path = get_stock_video(h, orientation=orientation, min_duration=int(bg_duration_sec))
+             
+        bg_path = stock_path
+        is_video = bool(stock_path)
+            
+        if not bg_path:
+            prompt = scene["prompt"]
+            if USE_AI_VIDEO_BROLL:
+                vid_path = generate_ai_video(prompt, job_id, idx, is_shorts=is_shorts)
+                if vid_path and os.path.exists(vid_path):
+                    bg_path = vid_path
+                    is_video = True
+                    
+            if not bg_path:
+                img_path = generate_ai_image(prompt, job_id, idx, width=(1080 if is_shorts else 1920), height=(1920 if is_shorts else 1080))
+                if img_path and os.path.exists(img_path):
+                    bg_path = img_path
+                    is_video = False
+
+        slide_data_list.append({
+            "bgPath": to_file_url(bg_path),
+            "isVideo": is_video,
+            "durationInFrames": bg_frames,
+            "startFrame": current_frame,
+            "text": scene["text"] # We pass exact text to remotion for parsing
+        })
+        
+        current_frame += bg_frames
+
+    # Build Props dict
+    props = {
+        "slides": slide_data_list,
+        "audioUrl": to_file_url(audio_path),
+        "bgmUrl": to_file_url(bgm_path) if os.path.exists(bgm_path) else "",
+        "wordTimings": word_timings,
+        "isShorts": is_shorts
+    }
     
-    # Cleanup memory
-    for c in final_clips: c.close()
-    final_video.close()
-    gc.collect()
+    remotion_dir = os.path.abspath("remotion_app")
+    props_path = os.path.join(remotion_dir, "props.json")
+    
+    with open(props_path, "w", encoding="utf-8") as f:
+         json.dump(props, f, indent=2)
+         
+    # 4. Render using Remotion CLI
+    abs_out_path = os.path.abspath(output_path)
+    log.info(f"Triggering Remotion Renderer -> {abs_out_path}")
+    
+    # We must start from 0 to total_frames - 1
+    frames_arg = f"0-{max(1, total_frames - 1)}"
+    npx_cmd = "npx.cmd" if os.name == "nt" else "npx"
+    cmd = [
+        npx_cmd, "remotion", "render",
+        "src/index.ts", "MainVideo",
+        abs_out_path,
+        "--props", "props.json",
+        "--frames", frames_arg
+    ]
+    
+    try:
+        subprocess.run(cmd, cwd=remotion_dir, check=True)
+        log.info("Remotion render completed successfully!")
+    except subprocess.CalledProcessError as e:
+        log.error(f"Remotion rendering failed: {e}")
+        return ""
     
     return output_path
 
