@@ -9,14 +9,14 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 def force_upload_latest():
-    # Find latest video in output
-    videos = glob.glob("output/*_shorts.mp4")
+    # Find latest video in output (either long or short)
+    videos = glob.glob("output/*_shorts.mp4") + glob.glob("output/*_video.mp4")
     if not videos:
-        log.error("No short videos found in output folder.")
+        log.error("No short or long videos found in output folder.")
         return
 
     latest_video = max(videos, key=os.path.getctime)
-    job_id = os.path.basename(latest_video).replace("_shorts.mp4", "")
+    job_id = os.path.basename(latest_video).replace("_shorts.mp4", "").replace("_video.mp4", "")
     
     # Try to find content json
     content_file = os.path.join("output", f"{job_id}_content.json")

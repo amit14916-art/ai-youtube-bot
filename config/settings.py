@@ -29,11 +29,14 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "NFG5qt843uXKj4pFvR7C") #
 ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2", "G0yjIg3xY8gEJZkHpjVm") # Host B
 
 # ─── TTS SETTINGS ──────────────────────────────────────────
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge") # options: elevenlabs, openai, edge
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "elevenlabs") # options: elevenlabs, openai, edge
 EDGE_VOICE_A = "en-US-AndrewNeural"
 EDGE_VOICE_B = "en-US-EmmaNeural"
 OPENAI_VOICE_A = "onyx" # Deep
 OPENAI_VOICE_B = "nova" # Engaging
+
+# ─── IMAGE GENERATION (FAL.AI) ───────────────────────────
+FAL_API_KEY = os.getenv("FAL_API_KEY", "80820a4b-404e-4571-821a-b44efebfebb6:e1cc228267b3a2b2275b04e932ad6319")
 
 # ─── STOCK FOOTAGE (Pexels) ─────────────────────────────
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N")
@@ -78,11 +81,11 @@ DEFAULT_LANGUAGE = "en"
 UPLOAD_HOUR   = 9
 UPLOAD_MINUTE = 0
 
-# 3 times for Long + Short (Total 3 Long, 3 Shorts)
-UPLOAD_TIMES = ["09:00", "15:00", "21:00"]
+# 2 times for Long + Short (Total 2 Long, 2 Shorts)
+UPLOAD_TIMES = ["09:00", "19:00"]
 
-# 3 more Shorts only (Total 3 more Shorts = 6 Shorts total daily)
-SHORTS_ONLY_TIMES = ["12:00", "18:00", "23:00"]
+# 1 more Short only (Total 1 more Short = 3 Shorts total daily)
+SHORTS_ONLY_TIMES = ["14:00"]
 
 # ─── OUTPUT PATHS ────────────────────────────────────────
 OUTPUT_DIR      = "output"

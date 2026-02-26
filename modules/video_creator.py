@@ -308,9 +308,10 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         # but we can call gc
         gc.collect()
 
-        # 5. Concatenate & Audio
-    # method="compose" is slower but safer for different sizes and allows transitions
-    final_video = concatenate_videoclips(final_clips, method="compose", padding=-0.5)
+    # 5. Concatenate & Audio
+    # Memory optimization: using method="chain" prevents huge RAM spikes,
+    # and all our clips are guaranteed to be the exact same dimensions!
+    final_video = concatenate_videoclips(final_clips, method="chain")
     
     # BGM
     bgm_path = os.path.join(ASSETS_DIR, "bgm.mp3")
@@ -333,8 +334,8 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         fps=VIDEO_FPS,
         codec="libx264",
         audio_codec="aac",
-        logger=None,
-        threads=4
+        logger="bar",  # Enable progress bar so we can see if it hangs
+        threads=1      # Reduced from 4 to 1 to prevent Out-Of-Memory crashes
     )
     
     # Cleanup memory

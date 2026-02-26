@@ -72,7 +72,7 @@ except Exception as e:
 #  CORE PIPELINE
 # -----------------------------------------------------------------
 
-def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = None) -> dict | None:
+def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bool = False, topic: str = None) -> dict | None:
     """
     Execute the full content creation and upload pipeline.
     Returns a dict with results or None on failure.
@@ -121,9 +121,10 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = 
             result["thumbnail_path"] = thumbnail_path
         
         # -- PHASE 4: VIDEO (Shorts) -----------------------------
-        log.info("Generating Vertical Shorts version...")
-        shorts_path = create_video(content, audio_path, job_id, is_shorts=True)
-        result["shorts_path"] = shorts_path
+        if not long_only:
+            log.info("Generating Vertical Shorts version...")
+            shorts_path = create_video(content, audio_path, job_id, is_shorts=True)
+            result["shorts_path"] = shorts_path
 
         # -- PHASE 5: UPLOAD -------------------------------------
         if dry_run:
@@ -143,17 +144,18 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, topic: str = 
                 send_whatsapp_notification(url, content["seo_title"])
             
             # Upload Shorts
-            log.info("🚀 Uploading Shorts Video...")
-            content_shorts = content.copy()
-            content_shorts["seo_title"] = f"{content['seo_title'][:50]}... #shorts"
-            content_shorts["seo_description"] += "\n\n#shorts #ai #tech"
-            shorts_url = upload_to_youtube(content_shorts, shorts_path, "")
-            result["shorts_url"] = shorts_url
+            if not long_only:
+                log.info("🚀 Uploading Shorts Video...")
+                content_shorts = content.copy()
+                content_shorts["seo_title"] = f"{content['seo_title'][:50]}... #shorts"
+                content_shorts["seo_description"] += "\n\n#shorts #ai #tech"
+                shorts_url = upload_to_youtube(content_shorts, shorts_path, "")
+                result["shorts_url"] = shorts_url
 
             result["status"] = "uploaded"
             log.info(f"\n🎉 SUCCESS!")
             if not shorts_only: log.info(f"Long: {result.get('youtube_url')}")
-            log.info(f"Shorts: {shorts_url}")
+            if not long_only: log.info(f"Shorts: {result.get('shorts_url')}")
 
         # Save result summary
         summary_file = os.path.join(OUTPUT_DIR, f"{job_id}_result.json")
@@ -177,19 +179,19 @@ def run_shorts_only():
     """Run pipeline but only for Shorts."""
     run_pipeline(dry_run=False, shorts_only=True)
 
-def run_scheduled():
-    """Run the full pipeline (Long + Short)."""
-    run_pipeline(dry_run=False)
+def run_long_only():
+    """Run pipeline but only for Long videos."""
+    run_pipeline(dry_run=False, shorts_only=False, long_only=True)
 
 def start_scheduler():
     """Start the daily scheduler with multiple upload times."""
-    from config.settings import SHORTS_ONLY_TIMES
+    from config.settings import LONG_ONLY_TIMES, SHORTS_ONLY_TIMES
     log.info(f"📅 Scheduler started")
-    log.info(f"  Long + Shorts: {UPLOAD_TIMES}")
-    log.info(f"  Shorts Only  : {SHORTS_ONLY_TIMES}")
+    log.info(f"  Long Only  : {LONG_ONLY_TIMES}")
+    log.info(f"  Shorts Only: {SHORTS_ONLY_TIMES}")
 
-    for t in UPLOAD_TIMES:
-        schedule.every().day.at(t).do(run_scheduled)
+    for t in LONG_ONLY_TIMES:
+        schedule.every().day.at(t).do(run_long_only)
         
     for t in SHORTS_ONLY_TIMES:
         schedule.every().day.at(t).do(run_shorts_only)
