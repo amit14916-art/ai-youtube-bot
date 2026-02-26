@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Sequence, useCurrentFrame, Audio, Img, Video, interpolate, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Sequence, useCurrentFrame, Audio, Img, Video, interpolate, useVideoConfig, staticFile } from 'remotion';
 
 export type WordTiming = {
     word: string;
@@ -28,10 +28,13 @@ const KenBurnsImage: React.FC<{ src: string; duration: number }> = ({ src, durat
     const scale = interpolate(frame, [0, duration], [1, 1.15], {
         extrapolateRight: 'clamp',
     });
+
+    if (!src) return <div style={{ width: '100%', height: '100%', backgroundColor: '#11151c' }} />;
+
     return (
         <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
             <Img
-                src={src}
+                src={staticFile(src)}
                 style={{
                     width: '100%',
                     height: '100%',
@@ -73,8 +76,8 @@ export const MainVideo: React.FC<MainVideoProps> = ({ slides, audioUrl, bgmUrl, 
                         durationInFrames={slide.durationInFrames}
                     >
                         <AbsoluteFill style={{ zIndex: 1 }}>
-                            {slide.isVideo ? (
-                                <Video src={slide.bgPath} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {(slide.isVideo && slide.bgPath) ? (
+                                <Video src={staticFile(slide.bgPath)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
                                 <KenBurnsImage src={slide.bgPath} duration={slide.durationInFrames} />
                             )}
@@ -165,8 +168,8 @@ export const MainVideo: React.FC<MainVideoProps> = ({ slides, audioUrl, bgmUrl, 
             ))}
 
             {/* Voiceover Audio */}
-            {audioUrl && <Audio src={audioUrl} />}
-            {bgmUrl && <Audio src={bgmUrl} volume={0.15} />}
+            {audioUrl && <Audio src={staticFile(audioUrl)} />}
+            {bgmUrl && <Audio src={staticFile(bgmUrl)} volume={0.15} />}
         </AbsoluteFill>
     );
 };

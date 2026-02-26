@@ -11,6 +11,7 @@ Builds high-quality faceless YouTube videos & Shorts:
 import logging
 import math
 import os
+import shutil
 import textwrap
 import random
 from pathlib import Path
@@ -304,8 +305,43 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
     }
     
     remotion_dir = os.path.abspath("remotion_app")
-    props_path = os.path.join(remotion_dir, "props.json")
+    public_dir = os.path.join(remotion_dir, "public")
+    os.makedirs(public_dir, exist_ok=True)
     
+    def file_url_to_path(url: str) -> str:
+        """Convert file:/// URL to OS path."""
+        if not isinstance(url, str):
+            return ""
+        if url.startswith("file:///"):
+            p = url.replace("file:///", "")
+            if os.name == "nt":
+                return p.replace("/", "\\")
+            return "/" + p
+        return url
+
+    def to_public_path(url_or_path: str) -> str:
+        """Copy a file to remotion_app/public and return the absolute path from public dir.
+        Remotion with --public-dir expects filenames relative to public dir using staticFile() in TSX.
+        Since we're passing filenames via props.json we use just the filename.
+        """
+        real_path = file_url_to_path(url_or_path)
+        if not real_path or not os.path.exists(real_path):
+            return ""
+        fname = os.path.basename(real_path)
+        dest = os.path.join(public_dir, fname)
+        if not os.path.exists(dest):
+            shutil.copy2(real_path, dest)
+        # Return just the filename - Remotion's staticFile() will resolve against public dir
+        return fname
+    
+    # Update all paths in props to use just filename (resolved by staticFile in TSX)
+    for slide in props["slides"]:
+        slide["bgPath"] = to_public_path(str(slide.get("bgPath", "")))
+    props["audioUrl"] = to_public_path(str(props.get("audioUrl", "")))
+    if props.get("bgmUrl"):
+        props["bgmUrl"] = to_public_path(str(props.get("bgmUrl", "")))
+    
+    props_path = os.path.join(remotion_dir, "props.json")
     with open(props_path, "w", encoding="utf-8") as f:
          json.dump(props, f, indent=2)
          
@@ -313,15 +349,13 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
     abs_out_path = os.path.abspath(output_path)
     log.info(f"Triggering Remotion Renderer -> {abs_out_path}")
     
-    # We must start from 0 to total_frames - 1
-    frames_arg = f"0-{max(1, total_frames - 1)}"
     npx_cmd = "npx.cmd" if os.name == "nt" else "npx"
     cmd = [
         npx_cmd, "remotion", "render",
         "src/index.ts", "MainVideo",
         abs_out_path,
         "--props", "props.json",
-        "--frames", frames_arg
+        "--public-dir", public_dir,
     ]
     
     try:

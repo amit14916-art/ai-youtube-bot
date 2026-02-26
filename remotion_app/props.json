@@ -3,41 +3,435 @@
     {
       "bgPath": "",
       "isVideo": false,
-      "durationInFrames": 147,
+      "durationInFrames": 272,
       "startFrame": 0,
-      "text": "The rise of AI-generated content is changing the media landscape, but at what cost?"
+      "text": "Welcome to our channel, where we explore the latest advancements in tech and AI. Today, we're discussing the rise of AI-generated virtual beings."
     },
     {
-      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_5828502_portrait.mp4",
+      "bgPath": "pexels_8098045_portrait.mp4",
       "isVideo": true,
-      "durationInFrames": 179,
-      "startFrame": 147,
-      "text": "Exactly, with deepfakes and fake news on the rise, it's getting harder to distinguish fact from fiction."
+      "durationInFrames": 189,
+      "startFrame": 272,
+      "text": "That's right, and it's a game-changer. These virtual beings are revolutionizing the entertainment industry and beyond."
     },
     {
-      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_18069831_portrait.mp4",
+      "bgPath": "pexels_8087073_portrait.mp4",
       "isVideo": true,
-      "durationInFrames": 211,
-      "startFrame": 326,
-      "text": "That's mind-blowing, and it's not just limited to news, AI-generated content is being used in entertainment and marketing as well."
+      "durationInFrames": 166,
+      "startFrame": 461,
+      "text": "Exactly, and we're seeing them in various forms, from virtual influencers to AI-generated actors."
     },
     {
-      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_31939597_portrait.mp4",
+      "bgPath": "pexels_8566809_portrait.mp4",
       "isVideo": true,
-      "durationInFrames": 200,
-      "startFrame": 537,
-      "text": "Wait, so you're saying that AI-generated content is a double-edged sword, it can be used for good or evil?"
-    },
-    {
-      "bgPath": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/pexels_13809349_portrait.mp4",
-      "isVideo": true,
-      "durationInFrames": 203,
-      "startFrame": 737,
-      "text": "Yes, and that's what makes it so dangerous, we need to be aware of the potential risks and consequences."
+      "durationInFrames": 321,
+      "startFrame": 627,
+      "text": "Wait, so you're saying that these virtual beings are not just limited to entertainment, but also have the potential to interact with us in our daily lives?"
     }
   ],
-  "audioUrl": "file:///C:/Users/ABHISHEK/Downloads/ai_youtube_bot_project/ai_youtube_bot/output/20260227_015044_voice.mp3",
+  "audioUrl": "20260227_023706_voice.mp3",
   "bgmUrl": "",
-  "wordTimings": [],
+  "wordTimings": [
+    {
+      "word": "Welcome",
+      "start": 0.02,
+      "end": 0.4
+    },
+    {
+      "word": "to",
+      "start": 0.4,
+      "end": 0.7
+    },
+    {
+      "word": "our",
+      "start": 0.7,
+      "end": 0.86
+    },
+    {
+      "word": "channel,",
+      "start": 0.86,
+      "end": 1.42
+    },
+    {
+      "word": "where",
+      "start": 1.42,
+      "end": 1.72
+    },
+    {
+      "word": "we",
+      "start": 1.72,
+      "end": 1.84
+    },
+    {
+      "word": "explore",
+      "start": 1.84,
+      "end": 2.26
+    },
+    {
+      "word": "the",
+      "start": 2.26,
+      "end": 2.42
+    },
+    {
+      "word": "latest",
+      "start": 2.42,
+      "end": 2.82
+    },
+    {
+      "word": "advancements",
+      "start": 2.82,
+      "end": 3.5
+    },
+    {
+      "word": "in",
+      "start": 3.5,
+      "end": 3.7
+    },
+    {
+      "word": "tech",
+      "start": 3.7,
+      "end": 4.06
+    },
+    {
+      "word": "and",
+      "start": 4.06,
+      "end": 4.42
+    },
+    {
+      "word": "AI.",
+      "start": 4.42,
+      "end": 4.74
+    },
+    {
+      "word": "Today,",
+      "start": 5.38,
+      "end": 5.76
+    },
+    {
+      "word": "we're",
+      "start": 5.76,
+      "end": 6.04
+    },
+    {
+      "word": "discussing",
+      "start": 6.04,
+      "end": 6.5
+    },
+    {
+      "word": "the",
+      "start": 6.5,
+      "end": 6.68
+    },
+    {
+      "word": "rise",
+      "start": 6.68,
+      "end": 7.08
+    },
+    {
+      "word": "of",
+      "start": 7.08,
+      "end": 7.26
+    },
+    {
+      "word": "AI-generated",
+      "start": 7.26,
+      "end": 8.12
+    },
+    {
+      "word": "virtual",
+      "start": 8.12,
+      "end": 8.56
+    },
+    {
+      "word": "beings.",
+      "start": 8.56,
+      "end": 8.9
+    },
+    {
+      "word": "That's",
+      "start": 9.6,
+      "end": 9.92
+    },
+    {
+      "word": "right,",
+      "start": 9.92,
+      "end": 10.2
+    },
+    {
+      "word": "and",
+      "start": 10.2,
+      "end": 10.42
+    },
+    {
+      "word": "it's",
+      "start": 10.42,
+      "end": 10.6
+    },
+    {
+      "word": "a",
+      "start": 10.6,
+      "end": 10.72
+    },
+    {
+      "word": "game-changer.",
+      "start": 10.72,
+      "end": 11.92
+    },
+    {
+      "word": "These",
+      "start": 11.92,
+      "end": 12.08
+    },
+    {
+      "word": "virtual",
+      "start": 12.08,
+      "end": 12.48
+    },
+    {
+      "word": "beings",
+      "start": 12.48,
+      "end": 12.86
+    },
+    {
+      "word": "are",
+      "start": 12.86,
+      "end": 13.1
+    },
+    {
+      "word": "revolutionizing",
+      "start": 13.1,
+      "end": 13.98
+    },
+    {
+      "word": "the",
+      "start": 13.5,
+      "end": 14.22
+    },
+    {
+      "word": "entertainment",
+      "start": 14.22,
+      "end": 14.82
+    },
+    {
+      "word": "industry",
+      "start": 14.82,
+      "end": 15.42
+    },
+    {
+      "word": "and",
+      "start": 15.42,
+      "end": 15.74
+    },
+    {
+      "word": "beyond.",
+      "start": 15.74,
+      "end": 16.84
+    },
+    {
+      "word": "Exactly,",
+      "start": 16.84,
+      "end": 17.64
+    },
+    {
+      "word": "and",
+      "start": 17.64,
+      "end": 17.86
+    },
+    {
+      "word": "we're",
+      "start": 17.86,
+      "end": 17.98
+    },
+    {
+      "word": "seeing",
+      "start": 17.98,
+      "end": 18.32
+    },
+    {
+      "word": "them",
+      "start": 18.32,
+      "end": 18.52
+    },
+    {
+      "word": "in",
+      "start": 18.52,
+      "end": 18.66
+    },
+    {
+      "word": "various",
+      "start": 18.66,
+      "end": 19.08
+    },
+    {
+      "word": "forms,",
+      "start": 18.62,
+      "end": 19.98
+    },
+    {
+      "word": "from",
+      "start": 19.98,
+      "end": 20.12
+    },
+    {
+      "word": "virtual",
+      "start": 20.12,
+      "end": 20.6
+    },
+    {
+      "word": "influencers",
+      "start": 20.6,
+      "end": 21.3
+    },
+    {
+      "word": "to",
+      "start": 21.3,
+      "end": 21.82
+    },
+    {
+      "word": "AI-generated",
+      "start": 21.82,
+      "end": 22.58
+    },
+    {
+      "word": "actors.",
+      "start": 22.58,
+      "end": 22.98
+    },
+    {
+      "word": "Wait,",
+      "start": 23.68,
+      "end": 24.02
+    },
+    {
+      "word": "so",
+      "start": 24.02,
+      "end": 24.18
+    },
+    {
+      "word": "you're",
+      "start": 24.18,
+      "end": 24.36
+    },
+    {
+      "word": "saying",
+      "start": 24.36,
+      "end": 24.62
+    },
+    {
+      "word": "that",
+      "start": 24.62,
+      "end": 24.8
+    },
+    {
+      "word": "these",
+      "start": 24.8,
+      "end": 25.02
+    },
+    {
+      "word": "virtual",
+      "start": 25.02,
+      "end": 25.38
+    },
+    {
+      "word": "beings",
+      "start": 25.38,
+      "end": 25.7
+    },
+    {
+      "word": "are",
+      "start": 25.7,
+      "end": 25.92
+    },
+    {
+      "word": "not",
+      "start": 25.92,
+      "end": 26.08
+    },
+    {
+      "word": "just",
+      "start": 26.08,
+      "end": 26.32
+    },
+    {
+      "word": "limited",
+      "start": 26.32,
+      "end": 26.64
+    },
+    {
+      "word": "to",
+      "start": 26.64,
+      "end": 26.86
+    },
+    {
+      "word": "entertainment,",
+      "start": 26.86,
+      "end": 27.9
+    },
+    {
+      "word": "but",
+      "start": 28,
+      "end": 28.02
+    },
+    {
+      "word": "also",
+      "start": 28.02,
+      "end": 28.3
+    },
+    {
+      "word": "have",
+      "start": 28.3,
+      "end": 28.54
+    },
+    {
+      "word": "the",
+      "start": 28.54,
+      "end": 28.64
+    },
+    {
+      "word": "potential",
+      "start": 28.64,
+      "end": 29.04
+    },
+    {
+      "word": "to",
+      "start": 29.04,
+      "end": 29.24
+    },
+    {
+      "word": "interact",
+      "start": 29.24,
+      "end": 29.66
+    },
+    {
+      "word": "with",
+      "start": 29.66,
+      "end": 29.92
+    },
+    {
+      "word": "us",
+      "start": 29.92,
+      "end": 30.12
+    },
+    {
+      "word": "in",
+      "start": 30.12,
+      "end": 30.26
+    },
+    {
+      "word": "our",
+      "start": 30.26,
+      "end": 30.38
+    },
+    {
+      "word": "daily",
+      "start": 30.38,
+      "end": 30.66
+    },
+    {
+      "word": "lives?",
+      "start": 30.66,
+      "end": 31.1
+    }
+  ],
   "isShorts": true
 }

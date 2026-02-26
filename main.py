@@ -30,7 +30,7 @@ import schedule
 from config.settings import (
     UPLOAD_HOUR, 
     UPLOAD_MINUTE, 
-    UPLOAD_TIMES, 
+    LONG_ONLY_TIMES, 
     OUTPUT_DIR, 
     LOG_FILE
 )

@@ -1,14 +1,21 @@
-import { Composition } from "remotion";
+import { Composition, getInputProps } from "remotion";
 import { MainVideo } from "./MainVideo";
 
-// We keep a default schema but pass dynamic props via JSON file when rendering
 export const RemotionVideo: React.FC = () => {
+    const inputProps = getInputProps() as any;
+
+    // Calculate actual total duration from dynamic JSON props
+    let totalDuration = 300;
+    if (inputProps && inputProps.slides && inputProps.slides.length > 0) {
+        totalDuration = inputProps.slides.reduce((acc: number, slide: any) => acc + slide.durationInFrames, 0);
+    }
+
     return (
         <>
             <Composition
                 id="MainVideo"
                 component={MainVideo}
-                durationInFrames={300} // This will be dynamically overridden by --props 
+                durationInFrames={totalDuration}
                 fps={30}
                 width={1080}
                 height={1920}
@@ -17,7 +24,8 @@ export const RemotionVideo: React.FC = () => {
                     audioUrl: "",
                     bgmUrl: "",
                     wordTimings: [],
-                    isShorts: true
+                    isShorts: true,
+                    ...inputProps
                 }}
             />
         </>
