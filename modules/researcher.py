@@ -181,43 +181,41 @@ def pick_best_topic_and_generate(
 
     target_words = 180 if shorts_only else SCRIPT_WORDS
     
-    prompt = f"""You are an expert YouTube content strategist. Your primary goal is to provide a {'punchy Vertical Short script' if shorts_only else 'detailed deep-dive podcast script'}.
-    
-    Target Length: {target_words} words.
-    
-    {top_instruction}
+    prompt = f"""You are a TOP YouTube SEO strategist for an AI-focused channel targeting viral growth. Your job is to produce content that gets MAXIMUM clicks, watch time and subscribers.
 
-    {data_context}
+Format: {'60-second vertical Short (punchy, fast-paced, TikTok style)' if shorts_only else 'long-form deep-dive podcast episode (10-15 min equivalent)'}
+Target script words: {target_words}
 
-YOUR TASKS — respond ONLY in valid JSON with these exact keys:
+{top_instruction}
+
+{data_context}
+
+CRITICAL SEO RULES YOU MUST FOLLOW:
+1. TITLE: 50-60 chars max. Must START with a high-volume keyword. Use ONE of these power patterns:
+   - "X Reasons Why [Topic] Will [Change/Replace/Shock] You"
+   - "The Truth About [Topic] Nobody Talks About"
+   - "How [Topic] Is [Disrupting/Replacing] Everything in [Year]"
+   - "[Number] AI [Tools/Secrets/Facts] That Will [Blow Your Mind/Change Your Life]"
+2. DESCRIPTION: Start with TWO emotional hook sentences (no keyword stuffing). Then write a 200-word keyword-rich summary. Include: timestamps, hashtags, CTAs ("Subscribe for daily AI updates!").
+3. TAGS: Minimum 20 tags. Mix: broad (AI, artificial intelligence), mid-tail (AI automation 2025), long-tail (how AI is replacing jobs in 2025). No duplicates.
+4. THUMBNAIL TEXT: 3-4 BOLD CAPS words max. Must create curiosity gap or shock. Examples: "AI REPLACING HUMANS?", "THIS CHANGES EVERYTHING", "99% DON'T KNOW THIS"
+5. HOOK: First 5 seconds must be the most shocking/surprising fact or question from the topic.
+
+Respond ONLY in valid JSON:
 
 {{
-  "chosen_topic": "The single best topic to make a video about today",
-  "reason": "One sentence why this topic is viral",
-  "seo_title": "Max 50-60 chars. High-CTR, curiosity-gap title. Start with a power word or the main trending keyword. Make it irresistible to click.",
-  "seo_description": "First 2 lines must be a high-engagement hook with the primary keyword. Then a 200-word deep summary containing secondary keywords for search optimization. Finally, add relevant time-stamps and credits.",
-  "tags": ["trending-keyword", "niche-keyword", "viral-tech-topic", "at-least-15-tags"],
-  "thumbnail_text": "3-5 high-impact, bold, punchy words",
-  "thumbnail_prompt": "Specific prompt for an eye-catching thumbnail background (e.g., 'Angry robot vs human', 'Glowing brain with futuristic city'). Use cinematic, highly detailed, dramatic lighting styles.",
-  "script": "{'Massive podcast script' if not shorts_only else 'Punchy, high-energy scroll-stopping script'}. MUST be {'at least' if not shorts_only else 'BETWEEN 150 AND 180'} words long. {'Structure as a back-and-forth between Host A and Host B' if not shorts_only else 'Host A and Host B talking fast'}. Format only as 'Host A: ...' and 'Host B: ...'. NO STAGE DIRECTIONS.",
-  "visual_hints": ["keyword1", "keyword2", "keyword3"]
+  "chosen_topic": "The single best specific topic for today",
+  "reason": "One sentence: why this will go viral today",
+  "seo_title": "Power-word title, 50-60 chars, starts with main keyword, includes number if possible",
+  "seo_description": "Line 1: Emotional hook sentence.\\nLine 2: Second hook sentence with primary keyword.\\n\\n[200-word keyword-rich description]\\n\\n⏱ TIMESTAMPS:\\n0:00 - Intro\\n0:30 - The Hook\\n\\n🔔 Subscribe for daily AI content!\\n\\n#AI #ArtificialIntelligence #AINews #FutureOfWork #TechNews",
+  "tags": ["AI", "artificial intelligence", "AI tools 2025", "AI automation", "future of AI", "ChatGPT", "AI jobs", "machine learning", "AI news today", "AI replacing jobs", "OpenAI", "Google AI", "AI technology", "AI for beginners", "AI trends 2025", "AI productivity", "tech news", "AI content creation", "AI tutorial", "AI explained"],
+  "thumbnail_text": "3-4 BOLD CAPS words that create curiosity or shock",
+  "thumbnail_prompt": "Hyper-realistic cinematic thumbnail background. Dramatic lighting, 8K quality. Example: 'Shocked human faces watching a robot takeover, dark dramatic atmosphere, red and blue lighting, ultra-detailed'",
+  "hook_line": "ONE shocking opening sentence that hooks viewer in 5 seconds. Start with 'Did you know...' or 'WARNING:' or a shocking statistic.",
+  "script": "{'High-energy 60-second Short script. Start with hook_line. Fast cuts, short punchy sentences. End with Like & Subscribe CTA.' if shorts_only else 'Engaging podcast script with 5 sections: 1) HOOK (shocking stat/question), 2) DEEP DIVE (technical explanation with analogies), 3) CONTROVERSY (Host B challenges assumptions), 4) FUTURE IMPACT (where is this heading?), 5) CTA (like, subscribe, comment). Format as Host A: ... Host B: ... 400+ words minimum.'}"
 }}
 
-Important for SEO: 
-1. The Title must use 'Title Case' and include a numbers if relevant (e.g., '10 AI Agents...').
-2. The Description must include links to your channel and similar viral topics.
-3. Tags must mix broad keywords (AI) with specific long-tail keywords.
-
-Important for SEO title: Start with the most searched keyword. Make it specific and valuable.
-Important for script: I need a VERY LONG script (AT LEAST {SCRIPT_WORDS} words). Break the conversation into 5 clear sections:
-1. The Hook & Intro (Explaining why this matters)
-2. The Deep Dive (Technical explanation/analogy)
-3. The Controversy/Challenge (Host B challenges Host A)
-4. The Future Implication (Where is this heading?)
-5. Final Summary & Call to Action.
-Each host should speak in long, detailed paragraphs. Do NOT cut it short.
-Be engaging, use human-like interruptions (like "Wait, so you're saying...", "Exactly!", "That's mind-blowing").
-"""
+DO NOT add any text outside the JSON. Ensure all JSON strings are properly escaped."""
 
     log.info(f"Sending research data to {LLM_PROVIDER.upper()} for topic selection + content generation…")
     

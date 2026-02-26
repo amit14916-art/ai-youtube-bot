@@ -296,12 +296,21 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         current_frame += bg_frames
 
     # Build Props dict
+    title = content.get("title", "")
+    script_text = content.get("script", "")
+    # Generate a hook from first sentence of script, max 10 words
+    first_sentence = script_text.split(".")[0].strip() if script_text else ""
+    hook_words = first_sentence.split()
+    hook_text = " ".join(hook_words[:10]) + ("..." if len(hook_words) > 10 else "") if first_sentence else "You NEED to see this!"
+
     props = {
         "slides": slide_data_list,
         "audioUrl": to_file_url(audio_path),
         "bgmUrl": to_file_url(bgm_path) if os.path.exists(bgm_path) else "",
         "wordTimings": word_timings,
-        "isShorts": is_shorts
+        "isShorts": is_shorts,
+        "hookText": hook_text,
+        "title": title,
     }
     
     remotion_dir = os.path.abspath("remotion_app")
