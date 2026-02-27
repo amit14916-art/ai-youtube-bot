@@ -12,6 +12,7 @@ requests>=2.31.0                   # HTTP client
 # ── Text-to-Speech ────────────────────────────────────────────
 gTTS>=2.5.1                        # Free Google TTS (fallback)
 pydub>=0.25.1                      # Audio processing / stitching
+mutagen>=1.47.0                    # MP3 metadata / duration reading
 elevenlabs>=1.0.0                  # Premium TTS
 edge-tts>=6.1.0                    # Free high-quality Microsoft voices
 openai>=1.0.0                      # OpenAI TTS support
