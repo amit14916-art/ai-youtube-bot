@@ -181,47 +181,58 @@ def pick_best_topic_and_generate(
 
     target_words = 180 if shorts_only else SCRIPT_WORDS
     min_words = 150 if shorts_only else 900  # Minimum acceptable word count
-    
+
+    # Pre-compute all conditional strings — backslashes not allowed inside f-string {} in Python < 3.12
+    fmt_label = "60-second vertical Short (punchy, fast-paced, TikTok style)" if shorts_only else "long-form deep-dive podcast episode (10-15 min equivalent)"
+    req1 = "Write AT LEAST 150 words for the Short script." if shorts_only else f"Write AT LEAST {target_words} words for the podcast script. The script MUST be long and detailed."
+    req2 = "Use fast-paced, punchy sentences." if shorts_only else "Use Host A and Host B format alternating. Include 5 full sections: HOOK, DEEP DIVE, CONTROVERSY, FUTURE IMPACT, CTA."
+    req3 = "End with a clear Subscribe CTA." if shorts_only else "Each section must be at least 200 words. Do NOT cut the script short."
+    script_label = "60-second Short" if shorts_only else f"{target_words}-WORD PODCAST"
+    long_format = (
+        "Host A: [HOOK - 200+ words]\n\n"
+        "Host B: [DEEP DIVE - 200+ words]\n\n"
+        "Host A: [CONTROVERSY - 200+ words]\n\n"
+        "Host B: [FUTURE IMPACT - 200+ words]\n\n"
+        "Host A: [CTA - 100+ words]"
+    )
+    script_format = "Short script: hook + punchy content + Subscribe CTA." if shorts_only else long_format
+
     prompt = f"""You are a TOP YouTube SEO strategist for an AI-focused channel targeting viral growth. Your job is to produce content that gets MAXIMUM clicks, watch time and subscribers.
 
-Format: {'60-second vertical Short (punchy, fast-paced, TikTok style)' if shorts_only else 'long-form deep-dive podcast episode (10-15 min equivalent)'}
-Target script words: {target_words} words MINIMUM. THIS IS CRITICAL — write a FULL, COMPLETE, DETAILED script.
+Format: {fmt_label}
+Target script words: {target_words} words MINIMUM. THIS IS CRITICAL - write a FULL, COMPLETE, DETAILED script.
 
 {top_instruction}
 
 {data_context}
 
-CRITICAL SEO RULES YOU MUST FOLLOW:
-1. TITLE: 50-60 chars max. Must START with a high-volume keyword. Use ONE of these power patterns:
-   - "X Reasons Why [Topic] Will [Change/Replace/Shock] You"
-   - "The Truth About [Topic] Nobody Talks About"
-   - "How [Topic] Is [Disrupting/Replacing] Everything in [Year]"
-   - "[Number] AI [Tools/Secrets/Facts] That Will [Blow Your Mind/Change Your Life]"
-2. DESCRIPTION: Start with TWO emotional hook sentences (no keyword stuffing). Then write a 200-word keyword-rich summary. Include: timestamps, hashtags, CTAs ("Subscribe for daily AI updates!").
-3. TAGS: Minimum 20 tags. Mix: broad (AI, artificial intelligence), mid-tail (AI automation 2025), long-tail (how AI is replacing jobs in 2025). No duplicates.
-4. THUMBNAIL TEXT: 3-4 BOLD CAPS words max. Must create curiosity gap or shock. Examples: "AI REPLACING HUMANS?", "THIS CHANGES EVERYTHING", "99% DON'T KNOW THIS"
-5. HOOK: First 5 seconds must be the most shocking/surprising fact or question from the topic.
+CRITICAL SEO RULES:
+1. TITLE: 50-60 chars max. START with a high-volume keyword.
+2. DESCRIPTION: Two emotional hook sentences + 200-word keyword-rich summary + timestamps + hashtags.
+3. TAGS: Minimum 20 tags mixing broad, mid-tail, and long-tail keywords.
+4. THUMBNAIL TEXT: 3-4 BOLD CAPS words that create curiosity or shock.
+5. HOOK: First 5 seconds = most shocking fact or question.
 
 SCRIPT REQUIREMENTS (MOST IMPORTANT):
-- {'Write AT LEAST 150 words for the Short script.' if shorts_only else f'Write AT LEAST {target_words} words for the podcast script. The script MUST be long and detailed.'}
-- {'Use fast-paced, punchy sentences.' if shorts_only else 'Use this format with Host A and Host B alternating. Include 5 full sections: HOOK, DEEP DIVE, CONTROVERSY, FUTURE IMPACT, CTA.'}
-- {'End with a clear Subscribe CTA.' if shorts_only else 'Each section should be at least 200 words. Do NOT cut the script short — write every single word.'}
+- {req1}
+- {req2}
+- {req3}
 
-Respond ONLY in valid JSON:
+Respond ONLY in valid JSON (no text outside the JSON block):
 
 {{
   "chosen_topic": "The single best specific topic for today",
   "reason": "One sentence: why this will go viral today",
-  "seo_title": "Power-word title, 50-60 chars, starts with main keyword, includes number if possible",
-  "seo_description": "Line 1: Emotional hook sentence.\\nLine 2: Second hook sentence with primary keyword.\\n\\n[200-word keyword-rich description]\\n\\n⏱ TIMESTAMPS:\\n0:00 - Intro\\n0:30 - The Hook\\n\\n🔔 Subscribe for daily AI content!\\n\\n#AI #ArtificialIntelligence #AINews #FutureOfWork #TechNews",
+  "seo_title": "Power-word title 50-60 chars",
+  "seo_description": "Hook line 1.\nHook line 2.\n\n200-word keyword-rich summary.\n\n0:00 - Intro\n\n#AI #ArtificialIntelligence #TechNews",
   "tags": ["AI", "artificial intelligence", "AI tools 2025", "AI automation", "future of AI", "ChatGPT", "AI jobs", "machine learning", "AI news today", "AI replacing jobs", "OpenAI", "Google AI", "AI technology", "AI for beginners", "AI trends 2025", "AI productivity", "tech news", "AI content creation", "AI tutorial", "AI explained"],
-  "thumbnail_text": "3-4 BOLD CAPS words that create curiosity or shock",
+  "thumbnail_text": "3-4 BOLD CAPS WORDS",
   "thumbnail_prompt": "Hyper-realistic cinematic thumbnail background. Dramatic lighting, 8K quality.",
-  "hook_line": "ONE shocking opening sentence that hooks viewer in 5 seconds.",
-  "script": "WRITE THE FULL {'60-second Short' if shorts_only else f'{target_words}-WORD PODCAST'} SCRIPT HERE — DO NOT TRUNCATE. {'Short script: hook + content + CTA.' if shorts_only else 'Long-form: Host A: [section 1 — HOOK, 200+ words]\\n\\nHost B: [section 2 — DEEP DIVE, 200+ words]\\n\\nHost A: [section 3 — CONTROVERSY, 200+ words]\\n\\nHost B: [section 4 — FUTURE IMPACT, 200+ words]\\n\\nHost A: [section 5 — CTA, 100+ words]'}"
+  "hook_line": "ONE shocking opening sentence.",
+  "script": "WRITE THE FULL {script_label} SCRIPT HERE. DO NOT TRUNCATE. {script_format}"
 }}
 
-DO NOT add any text outside the JSON. Ensure all JSON strings are properly escaped. THE SCRIPT FIELD MUST BE AT LEAST {min_words} WORDS."""
+THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text outside the JSON."""
 
     log.info(f"Sending research data to {LLM_PROVIDER.upper()} for topic selection + content generation…")
     
