@@ -225,6 +225,11 @@ if __name__ == "__main__":
         help="Only generate and upload the Vertical Short",
     )
     parser.add_argument(
+        "--long-only",
+        action="store_true",
+        help="Only generate and upload the Long-form video (no Shorts)",
+    )
+    parser.add_argument(
         "--topic",
         type=str,
         help="Custom topic for this run",
@@ -234,7 +239,7 @@ if __name__ == "__main__":
     if args.schedule:
         start_scheduler()
     else:
-        result = run_pipeline(dry_run=args.dry_run, shorts_only=args.shorts_only, topic=args.topic)
+        result = run_pipeline(dry_run=args.dry_run, shorts_only=args.shorts_only, long_only=args.long_only, topic=args.topic)
         if result and result.get("status") in ("uploaded", "dry_run_complete"):
             sys.exit(0)
         else:

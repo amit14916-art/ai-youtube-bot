@@ -43,7 +43,7 @@ PLAYHT_VOICE_ID_2 = os.getenv("PLAYHT_VOICE_ID_2", "s3://voice-cloning-zero-shot
 
 # ─── IMAGE/VIDEO GENERATION (FAL.AI) ─────────────────────
 FAL_API_KEY = os.getenv("FAL_API_KEY", "80820a4b-404e-4571-821a-b44efebfebb6:e1cc228267b3a2b2275b04e932ad6319")
-USE_AI_VIDEO_BROLL = True # Set to True to generate actual AI Video clips instead of static images
+USE_AI_VIDEO_BROLL = False # Disabled: AI video gen takes 5+ mins per scene, kills CI runner
 
 # ─── STOCK FOOTAGE (Pexels) ─────────────────────────────
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N")
@@ -70,7 +70,7 @@ if not FONT_PATH:
 # ─── RESEARCH SETTINGS ───────────────────────────────────
 NICHE           = "AGENTIC AI WORLD"
 RESEARCH_TOPICS = 5          # Number of trending topics to research
-SCRIPT_WORDS    = 1300       # ~8-9 minute video to ensure at least 6-7 mins minimum
+SCRIPT_WORDS    = 900        # ~6 min video — keeps Remotion render within CI time limit
 
 # Google Trends geo (US, IN, GB, etc.)
 TRENDS_GEO = "US"

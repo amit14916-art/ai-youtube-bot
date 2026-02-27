@@ -2,23 +2,36 @@ name: AI YouTube Bot Runner
 
 on:
   schedule:
-    # 9, 12, 3, 6, 9, 11 (IST) -> 3:30, 6:30, 9:30, 12:30, 15:30, 17:30 UTC
-    - cron: '30 3,6,9,12,15,17 * * *'
+    # IST Times  -> UTC  -> What runs
+    # 09:00 AM   -> 03:30 -> Long video
+    # 12:00 PM   -> 06:30 -> Shorts only
+    # 03:00 PM   -> 09:30 -> Long video
+    # 06:00 PM   -> 12:30 -> Shorts only
+    # 09:00 PM   -> 15:30 -> Long video
+    # 11:00 PM   -> 17:30 -> Shorts only
+    - cron: '30 3,9,15 * * *'   # Long video runs (IST 9am, 3pm, 9pm)
+    - cron: '30 6,12,17 * * *'  # Shorts only runs (IST 12pm, 6pm, 11pm)
   workflow_dispatch:
     inputs:
-      shorts_only:
-        description: 'Run only for Shorts'
+      run_type:
+        description: 'What to run: long, shorts, or both'
         required: false
-        default: false
-        type: boolean
+        default: 'long'
+        type: choice
+        options:
+          - long
+          - shorts
+          - both
       topic:
-        description: 'Custom topic (leave empty for research)'
+        description: 'Custom topic (leave empty for auto-research)'
         required: false
         default: ''
 
 jobs:
   build-and-run:
     runs-on: ubuntu-latest
+    timeout-minutes: 25        # Hard cap: kill job if it exceeds 25 mins total
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,27 +40,59 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'          # Cache pip deps across runs for speed
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: remotion_app/package-lock.json
 
       - name: Install System Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-liberation
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-liberation fonts-open-sans > /dev/null
 
       - name: Install Remotion dependencies
         working-directory: ./remotion_app
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Install Python Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip --quiet
+          pip install -r requirements.txt --quiet
 
-      - name: Run Bot
+      - name: Write YouTube Token
+        run: |
+          mkdir -p config
+          # Write token safely (handles special chars in JSON)
+          printf '%s' "$YOUTUBE_TOKEN_JSON" > config/token.json
+          # Validate that it's valid JSON
+          python -c "import json,sys; json.load(open('config/token.json'))" && echo "✅ token.json is valid JSON" || echo "⚠️ token.json may be invalid"
+        env:
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+
+      - name: Determine Run Type
+        id: run_type
+        run: |
+          HOUR=$(date +%H)
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            RUN_TYPE="${{ github.event.inputs.run_type }}"
+          else
+            # 3, 9, 15 UTC = Long video runs
+            if [[ "$HOUR" == "03" || "$HOUR" == "09" || "$HOUR" == "15" ]]; then
+              RUN_TYPE="long"
+            else
+              RUN_TYPE="shorts"
+            fi
+          fi
+          echo "RUN_TYPE=$RUN_TYPE" >> $GITHUB_OUTPUT
+          echo "🎬 This run type: $RUN_TYPE (UTC hour: $HOUR)"
+
+      - name: Run Bot - Long Video
+        if: steps.run_type.outputs.RUN_TYPE == 'long' || steps.run_type.outputs.RUN_TYPE == 'both'
+        timeout-minutes: 20
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
@@ -57,46 +102,47 @@ jobs:
           PLAYHT_API_KEY: ${{ secrets.PLAYHT_API_KEY }}
           FAL_API_KEY: ${{ secrets.FAL_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
         run: |
-          mkdir -p config
-          echo "$YOUTUBE_TOKEN_JSON" > config/token.json
-          
-          # Logic to decide if it's a Long or Shorts-only run based on UTC hour
-          # Hours for Long (IST 9, 15, 21): 3, 9, 15 UTC
-          HOUR=$(date +%H)
-          FLAGS=""
-          
-          # If manual run, check inputs
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            if [ "${{ github.event.inputs.shorts_only }}" == "true" ]; then
-              FLAGS="--shorts-only"
-            fi
-            if [ -n "${{ github.event.inputs.topic }}" ]; then
-              FLAGS="$FLAGS --topic \"${{ github.event.inputs.topic }}\""
-            fi
-          else
-            # Automated run: check if it's one of the "Shorts Only" intervals (6, 12, 17 UTC)
-            if [[ "$HOUR" == "06" || "$HOUR" == "12" || "$HOUR" == "17" ]]; then
-              FLAGS="--shorts-only"
-            fi
+          TOPIC_FLAG=""
+          if [ -n "${{ github.event.inputs.topic }}" ]; then
+            TOPIC_FLAG="--topic \"${{ github.event.inputs.topic }}\""
           fi
-          
-          echo "Running with flags: $FLAGS"
-          python main.py $FLAGS
+          echo "Running Long video pipeline..."
+          python main.py --long-only $TOPIC_FLAG
+
+      - name: Run Bot - Shorts Video
+        if: steps.run_type.outputs.RUN_TYPE == 'shorts' || steps.run_type.outputs.RUN_TYPE == 'both'
+        timeout-minutes: 15
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}
+          GOOGLE_SEARCH_ENGINE_ID: ${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}
+          PLAYHT_USER_ID: ${{ secrets.PLAYHT_USER_ID }}
+          PLAYHT_API_KEY: ${{ secrets.PLAYHT_API_KEY }}
+          FAL_API_KEY: ${{ secrets.FAL_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: |
+          TOPIC_FLAG=""
+          if [ -n "${{ github.event.inputs.topic }}" ]; then
+            TOPIC_FLAG="--topic \"${{ github.event.inputs.topic }}\""
+          fi
+          echo "Running Shorts pipeline..."
+          python main.py --shorts-only $TOPIC_FLAG
 
       - name: Upload Logs/Output
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bot-output
+          name: bot-output-${{ github.run_number }}
           path: output/
+          retention-days: 7
 
-      - name: Commit and Push changes
+      - name: Commit Topic History
         if: success()
         run: |
           git config --global user.name "AI YouTube Bot"
           git config --global user.email "bot@youtube-ai.com"
-          git add output/topic_history.json
-          git commit -m "Auto-update topic history [skip ci]" || echo "No changes to commit"
-          git push origin main
+          git add output/topic_history.json 2>/dev/null || true
+          git commit -m "Auto-update topic history [skip ci]" 2>/dev/null || echo "No changes to commit"
+          git push origin main 2>/dev/null || echo "Push failed (likely no changes)"

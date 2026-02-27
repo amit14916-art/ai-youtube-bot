@@ -255,8 +255,9 @@ THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text ou
                 model=GROQ_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
-                max_tokens=8000,  # Increased to allow long scripts
+                max_tokens=8000,
                 temperature=0.7,
+                timeout=120,  # 2 min timeout for slow networks
             )
             raw = response.choices[0].message.content
 

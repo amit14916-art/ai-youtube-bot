@@ -26,3 +26,15 @@ Thumbs.db
 
 # Temp Files
 *_videoTEMP_*.mp4
+
+# Remotion generated files (large media, don't commit)
+remotion_app/public/*.mp4
+remotion_app/public/*.mp3
+remotion_app/public/*.jpg
+remotion_app/public/*.png
+remotion_app/public/*.webp
+remotion_app/props.json
+
+# Config secrets
+config/token.json
+config/client_secrets.json
