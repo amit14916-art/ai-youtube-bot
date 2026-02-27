@@ -180,11 +180,12 @@ def pick_best_topic_and_generate(
         data_context = f"TRENDING DATA:\n=== Google Trends ===\n{gt_topics}\n\n=== Top YouTube Videos ===\n{yt_titles}"
 
     target_words = 180 if shorts_only else SCRIPT_WORDS
+    min_words = 150 if shorts_only else 900  # Minimum acceptable word count
     
     prompt = f"""You are a TOP YouTube SEO strategist for an AI-focused channel targeting viral growth. Your job is to produce content that gets MAXIMUM clicks, watch time and subscribers.
 
 Format: {'60-second vertical Short (punchy, fast-paced, TikTok style)' if shorts_only else 'long-form deep-dive podcast episode (10-15 min equivalent)'}
-Target script words: {target_words}
+Target script words: {target_words} words MINIMUM. THIS IS CRITICAL — write a FULL, COMPLETE, DETAILED script.
 
 {top_instruction}
 
@@ -201,6 +202,11 @@ CRITICAL SEO RULES YOU MUST FOLLOW:
 4. THUMBNAIL TEXT: 3-4 BOLD CAPS words max. Must create curiosity gap or shock. Examples: "AI REPLACING HUMANS?", "THIS CHANGES EVERYTHING", "99% DON'T KNOW THIS"
 5. HOOK: First 5 seconds must be the most shocking/surprising fact or question from the topic.
 
+SCRIPT REQUIREMENTS (MOST IMPORTANT):
+- {'Write AT LEAST 150 words for the Short script.' if shorts_only else f'Write AT LEAST {target_words} words for the podcast script. The script MUST be long and detailed.'}
+- {'Use fast-paced, punchy sentences.' if shorts_only else 'Use this format with Host A and Host B alternating. Include 5 full sections: HOOK, DEEP DIVE, CONTROVERSY, FUTURE IMPACT, CTA.'}
+- {'End with a clear Subscribe CTA.' if shorts_only else 'Each section should be at least 200 words. Do NOT cut the script short — write every single word.'}
+
 Respond ONLY in valid JSON:
 
 {{
@@ -210,41 +216,67 @@ Respond ONLY in valid JSON:
   "seo_description": "Line 1: Emotional hook sentence.\\nLine 2: Second hook sentence with primary keyword.\\n\\n[200-word keyword-rich description]\\n\\n⏱ TIMESTAMPS:\\n0:00 - Intro\\n0:30 - The Hook\\n\\n🔔 Subscribe for daily AI content!\\n\\n#AI #ArtificialIntelligence #AINews #FutureOfWork #TechNews",
   "tags": ["AI", "artificial intelligence", "AI tools 2025", "AI automation", "future of AI", "ChatGPT", "AI jobs", "machine learning", "AI news today", "AI replacing jobs", "OpenAI", "Google AI", "AI technology", "AI for beginners", "AI trends 2025", "AI productivity", "tech news", "AI content creation", "AI tutorial", "AI explained"],
   "thumbnail_text": "3-4 BOLD CAPS words that create curiosity or shock",
-  "thumbnail_prompt": "Hyper-realistic cinematic thumbnail background. Dramatic lighting, 8K quality. Example: 'Shocked human faces watching a robot takeover, dark dramatic atmosphere, red and blue lighting, ultra-detailed'",
-  "hook_line": "ONE shocking opening sentence that hooks viewer in 5 seconds. Start with 'Did you know...' or 'WARNING:' or a shocking statistic.",
-  "script": "{'High-energy 60-second Short script. Start with hook_line. Fast cuts, short punchy sentences. End with Like & Subscribe CTA.' if shorts_only else 'Engaging podcast script with 5 sections: 1) HOOK (shocking stat/question), 2) DEEP DIVE (technical explanation with analogies), 3) CONTROVERSY (Host B challenges assumptions), 4) FUTURE IMPACT (where is this heading?), 5) CTA (like, subscribe, comment). Format as Host A: ... Host B: ... 400+ words minimum.'}"
+  "thumbnail_prompt": "Hyper-realistic cinematic thumbnail background. Dramatic lighting, 8K quality.",
+  "hook_line": "ONE shocking opening sentence that hooks viewer in 5 seconds.",
+  "script": "WRITE THE FULL {'60-second Short' if shorts_only else f'{target_words}-WORD PODCAST'} SCRIPT HERE — DO NOT TRUNCATE. {'Short script: hook + content + CTA.' if shorts_only else 'Long-form: Host A: [section 1 — HOOK, 200+ words]\\n\\nHost B: [section 2 — DEEP DIVE, 200+ words]\\n\\nHost A: [section 3 — CONTROVERSY, 200+ words]\\n\\nHost B: [section 4 — FUTURE IMPACT, 200+ words]\\n\\nHost A: [section 5 — CTA, 100+ words]'}"
 }}
 
-DO NOT add any text outside the JSON. Ensure all JSON strings are properly escaped."""
+DO NOT add any text outside the JSON. Ensure all JSON strings are properly escaped. THE SCRIPT FIELD MUST BE AT LEAST {min_words} WORDS."""
 
     log.info(f"Sending research data to {LLM_PROVIDER.upper()} for topic selection + content generation…")
     
+    import json, re
     client = get_llm_client()
     
-    if LLM_PROVIDER == "anthropic":
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4000,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = response.content[0].text
-    else:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-            max_tokens=6144, # Ensure enough room for ~1200 words + JSON overhead
-        )
-        raw = response.choices[0].message.content
+    max_retries = 2
+    data = None
+    
+    for attempt in range(max_retries + 1):
+        if LLM_PROVIDER == "anthropic":
+            response = client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=8000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = response.content[0].text
+        else:
+            response = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                max_tokens=8000,  # Increased to allow long scripts
+                temperature=0.7,
+            )
+            raw = response.choices[0].message.content
 
-    import json, re
-    # Extract JSON even if wrapped in markdown code block
-    match = re.search(r"\{[\s\S]+\}", raw)
-    if not match:
-        raise ValueError(f"{LLM_PROVIDER.upper()} did not return valid JSON")
+        # Extract JSON even if wrapped in markdown code block
+        match = re.search(r"\{[\s\S]+\}", raw)
+        if not match:
+            log.warning(f"Attempt {attempt+1}: LLM did not return valid JSON. Retrying...")
+            continue
 
-    data = json.loads(match.group())
-    log.info(f"Topic chosen: {data['chosen_topic']}")
+        parsed = json.loads(match.group())
+        script_word_count = len(parsed.get("script", "").split())
+        log.info(f"Attempt {attempt+1}: Script word count = {script_word_count} (min required: {min_words})")
+        
+        if script_word_count >= min_words:
+            data = parsed
+            break
+        elif attempt < max_retries:
+            log.warning(f"Script too short ({script_word_count} words). Retrying with stronger enforcement...")
+            # Strengthen the prompt for retry
+            prompt = prompt.replace(
+                f"THE SCRIPT FIELD MUST BE AT LEAST {min_words} WORDS.",
+                f"THE SCRIPT FIELD MUST BE AT LEAST {min_words} WORDS. Previous attempt only had {script_word_count} words — WRITE MORE.\nThe script field in the previous response was too short. This time, write a MUCH LONGER, more detailed script."
+            )
+        else:
+            log.warning(f"Script still short after {max_retries} retries ({script_word_count} words). Using best result.")
+            data = parsed
+    
+    if not data:
+        raise ValueError(f"{LLM_PROVIDER.upper()} did not return valid JSON after {max_retries+1} attempts")
+    
+    log.info(f"Topic chosen: {data['chosen_topic']} | Script: {len(data.get('script','').split())} words")
     
     # Save to history
     save_topic_to_history(data['chosen_topic'])

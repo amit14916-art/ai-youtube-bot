@@ -57,19 +57,45 @@ def generate_ai_image(prompt: str, job_id: str, index: int, width: int = 1920, h
             
             log.warning(f"Fal.ai failed with status {resp.status_code}: {resp.text}. Falling back to Pollinations.ai...")
         
-        # Fallback to Pollinations.ai 
+        # Fallback to Pollinations.ai (with retries)
         log.info(f"Generating fallback image via Pollinations.ai for: {clean_prompt}")
-        poll_url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(full_prompt)}?width={width}&height={height}&seed={index}"
+        for seed_offset in range(3):  # Retry up to 3 times with different seeds
+            try:
+                seed = index + seed_offset * 100
+                poll_url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(full_prompt)}?width={width}&height={height}&seed={seed}&nologo=true&enhance=true"
+                resp = requests.get(poll_url, timeout=60)
+                resp.raise_for_status()
+                # Verify we got actual image data (not an error page)
+                if resp.headers.get('content-type', '').startswith('image/'):
+                    with open(save_path, "wb") as f:
+                        f.write(resp.content)
+                    log.info(f"Pollinations.ai image saved: {save_path}")
+                    return save_path
+                else:
+                    log.warning(f"Pollinations.ai returned non-image (attempt {seed_offset+1}). Retrying...")
+            except Exception as poll_err:
+                log.warning(f"Pollinations.ai attempt {seed_offset+1} failed: {poll_err}")
         
-        resp = requests.get(poll_url, timeout=30)
-        resp.raise_for_status()
-        
-        with open(save_path, "wb") as f:
-            f.write(resp.content)
-            
+        # Ultimate fallback: generate a solid gradient image using PIL
+        log.warning("All image APIs failed. Generating solid gradient fallback image.")
+        from PIL import Image, ImageDraw
+        import random
+        img = Image.new("RGB", (width, height), (10, 15, 30))
+        draw = ImageDraw.Draw(img)
+        # Dark gradient overlay
+        colors = [(10, 15, 30), (20, 40, 80), (10, 15, 30)]
+        for y in range(height):
+            ratio = y / height
+            r = int(colors[0][0] * (1 - ratio) + colors[1][0] * ratio)
+            g = int(colors[0][1] * (1 - ratio) + colors[1][1] * ratio)
+            b = int(colors[0][2] * (1 - ratio) + colors[1][2] * ratio)
+            draw.line([(0, y), (width, y)], fill=(r, g, b))
+        img.save(save_path, "JPEG", quality=85)
         return save_path
+        
     except Exception as e:
         log.error(f"Image generation failed for {prompt}: {e}")
+        # Last resort: return empty (video will skip this slide)
         return ""
 
 
