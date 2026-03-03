@@ -42,3 +42,7 @@ python-jose[cryptography]>=3.3.0   # JWT tokens
 passlib[bcrypt]>=1.7.4             # Password hashing
 stripe>=5.0.0                      # Payments
 python-multipart>=0.0.6            # Form data support
+
+# ── LangChain ─────────────────────────────────────────────────
+langchain-core>=0.1.0              # Langchain core
+langchain>=0.1.0                   # Langchain framework
