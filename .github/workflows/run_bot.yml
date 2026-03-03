@@ -1,6 +1,9 @@
 name: AI YouTube Bot Runner
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # IST Times  -> UTC  -> What runs
     # 09:00 AM   -> 03:30 -> Long video
