@@ -8,25 +8,25 @@ import os
 
 
 # ─── LLM SETTINGS (Open Source / Claude) ─────────────────
-LLM_PROVIDER      = os.getenv("LLM_PROVIDER", "groq") 
-GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "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")
-GROQ_MODEL        = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "groq"
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or "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"
+GROQ_MODEL        = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "YOUR_ANTHROPIC_API_KEY")
-OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "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")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "YOUR_ANTHROPIC_API_KEY"
+OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY") or "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"
 
 # ─── YOUTUBE DATA API v3 ─────────────────────────────────
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s")
-YOUTUBE_CLIENT_SECRETS_FILE = os.getenv("YOUTUBE_CLIENT_SECRETS_FILE", "config/client_secrets.json")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY") or "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s"
+YOUTUBE_CLIENT_SECRETS_FILE = os.getenv("YOUTUBE_CLIENT_SECRETS_FILE") or "config/client_secrets.json"
 
 # ─── GOOGLE CUSTOM SEARCH API ────────────────────────────
-GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY", "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s")
-GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "56147179e87e648f7")
+GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY") or "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s"
+GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID") or "56147179e87e648f7"
 
 # ─── ELEVENLABS (Premium TTS) ────────────────────────────
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "sk_b00fac47a3960642fbd00a014066d0a78b10cc681dcf4f74")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "NFG5qt843uXKj4pFvR7C") # Host A (Adam)
-ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2", "G0yjIg3xY8gEJZkHpjVm") # Host B
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY") or "sk_b00fac47a3960642fbd00a014066d0a78b10cc681dcf4f74"
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or "NFG5qt843uXKj4pFvR7C" # Host A (Adam)
+ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2") or "G0yjIg3xY8gEJZkHpjVm" # Host B
 
 # ─── TTS SETTINGS ──────────────────────────────────────────
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge") # options: playht, elevenlabs, openai, edge
@@ -36,21 +36,21 @@ OPENAI_VOICE_A = "onyx" # Deep
 OPENAI_VOICE_B = "nova" # Engaging
 
 # ─── PLAYHT (Ultra-realistic TTS) ────────────────────────
-PLAYHT_USER_ID = os.getenv("PLAYHT_USER_ID", "")
-PLAYHT_API_KEY = os.getenv("PLAYHT_API_KEY", "")
-PLAYHT_VOICE_ID = os.getenv("PLAYHT_VOICE_ID", "s3://voice-cloning-zero-shot/d9ff78ba-d016-47f6-b0ef-dd630f59414e/female-cs/manifest.json") # Default Host A (Female)
-PLAYHT_VOICE_ID_2 = os.getenv("PLAYHT_VOICE_ID_2", "s3://voice-cloning-zero-shot/775ae416-49bb-4fb6-bd45-740f205d20a1/jason/manifest.json") # Default Host B (Male)
+PLAYHT_USER_ID = os.getenv("PLAYHT_USER_ID") or ""
+PLAYHT_API_KEY = os.getenv("PLAYHT_API_KEY") or ""
+PLAYHT_VOICE_ID = os.getenv("PLAYHT_VOICE_ID") or "s3://voice-cloning-zero-shot/d9ff78ba-d016-47f6-b0ef-dd630f59414e/female-cs/manifest.json" # Default Host A (Female)
+PLAYHT_VOICE_ID_2 = os.getenv("PLAYHT_VOICE_ID_2") or "s3://voice-cloning-zero-shot/775ae416-49bb-4fb6-bd45-740f205d20a1/jason/manifest.json" # Default Host B (Male)
 
 # ─── IMAGE/VIDEO GENERATION (FAL.AI) ─────────────────────
-FAL_API_KEY = os.getenv("FAL_API_KEY", "80820a4b-404e-4571-821a-b44efebfebb6:e1cc228267b3a2b2275b04e932ad6319")
+FAL_API_KEY = os.getenv("FAL_API_KEY") or "80820a4b-404e-4571-821a-b44efebfebb6:e1cc228267b3a2b2275b04e932ad6319"
 USE_AI_VIDEO_BROLL = False # Disabled: AI video gen takes 5+ mins per scene, kills CI runner
 
 # ─── STOCK FOOTAGE (Pexels) ─────────────────────────────
-PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N")
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY") or "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N"
 
 # ─── NOTIFICATIONS (WhatsApp via CallmeBot) ──────────────
-WHATSAPP_PHONE = os.getenv("WHATSAPP_PHONE", "")
-WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY", "")
+WHATSAPP_PHONE = os.getenv("WHATSAPP_PHONE") or ""
+WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY") or ""
 
 # ─── VIDEO SETTINGS ──────────────────────────────────────
 VIDEO_WIDTH  = 1920
