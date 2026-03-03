@@ -370,10 +370,10 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
     ]
     
     try:
-        subprocess.run(cmd, cwd=remotion_dir, check=True, timeout=480)  # 8-min hard cap
+        subprocess.run(cmd, cwd=remotion_dir, check=True, timeout=4800)  # 80-min hard cap
         log.info("Remotion render completed successfully!")
     except subprocess.TimeoutExpired:
-        log.error("Remotion render TIMED OUT after 8 minutes. Video not created.")
+        log.error("Remotion render TIMED OUT after 80 minutes. Video not created.")
         return ""
     except subprocess.CalledProcessError as e:
         log.error(f"Remotion rendering failed with exit code {e.returncode}")
