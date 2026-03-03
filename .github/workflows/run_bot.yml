@@ -7,24 +7,11 @@ on:
   schedule:
     # IST Times  -> UTC  -> What runs
     # 09:00 AM   -> 03:30 -> Long video
-    # 12:00 PM   -> 06:30 -> Shorts only
     # 03:00 PM   -> 09:30 -> Long video
-    # 06:00 PM   -> 12:30 -> Shorts only
     # 09:00 PM   -> 15:30 -> Long video
-    # 11:00 PM   -> 17:30 -> Shorts only
     - cron: '30 3,9,15 * * *'   # Long video runs (IST 9am, 3pm, 9pm)
-    - cron: '30 6,12,17 * * *'  # Shorts only runs (IST 12pm, 6pm, 11pm)
   workflow_dispatch:
     inputs:
-      run_type:
-        description: 'What to run: long, shorts, or both'
-        required: false
-        default: 'long'
-        type: choice
-        options:
-          - long
-          - shorts
-          - both
       topic:
         description: 'Custom topic (leave empty for auto-research)'
         required: false
@@ -33,7 +20,7 @@ on:
 jobs:
   build-and-run:
     runs-on: ubuntu-latest
-    timeout-minutes: 25        # Hard cap: kill job if it exceeds 25 mins total
+    timeout-minutes: 90        # Hard cap: kill job if it exceeds 90 mins total
 
     steps:
       - name: Checkout Code
@@ -76,26 +63,8 @@ jobs:
         env:
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
 
-      - name: Determine Run Type
-        id: run_type
-        run: |
-          HOUR=$(date +%H)
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            RUN_TYPE="${{ github.event.inputs.run_type }}"
-          else
-            # 3, 9, 15 UTC = Long video runs
-            if [[ "$HOUR" == "03" || "$HOUR" == "09" || "$HOUR" == "15" ]]; then
-              RUN_TYPE="long"
-            else
-              RUN_TYPE="shorts"
-            fi
-          fi
-          echo "RUN_TYPE=$RUN_TYPE" >> $GITHUB_OUTPUT
-          echo "🎬 This run type: $RUN_TYPE (UTC hour: $HOUR)"
-
-      - name: Run Bot - Long Video
-        if: steps.run_type.outputs.RUN_TYPE == 'long' || steps.run_type.outputs.RUN_TYPE == 'both'
-        timeout-minutes: 20
+      - name: Run Bot
+        timeout-minutes: 85
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
@@ -112,26 +81,6 @@ jobs:
           fi
           echo "Running Long video pipeline..."
           python main.py --long-only $TOPIC_FLAG
-
-      - name: Run Bot - Shorts Video
-        if: steps.run_type.outputs.RUN_TYPE == 'shorts' || steps.run_type.outputs.RUN_TYPE == 'both'
-        timeout-minutes: 15
-        env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-          GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}
-          GOOGLE_SEARCH_ENGINE_ID: ${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}
-          PLAYHT_USER_ID: ${{ secrets.PLAYHT_USER_ID }}
-          PLAYHT_API_KEY: ${{ secrets.PLAYHT_API_KEY }}
-          FAL_API_KEY: ${{ secrets.FAL_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-        run: |
-          TOPIC_FLAG=""
-          if [ -n "${{ github.event.inputs.topic }}" ]; then
-            TOPIC_FLAG="--topic \"${{ github.event.inputs.topic }}\""
-          fi
-          echo "Running Shorts pipeline..."
-          python main.py --shorts-only $TOPIC_FLAG
 
       - name: Upload Logs/Output
         if: always()
