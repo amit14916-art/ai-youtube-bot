@@ -3,7 +3,7 @@ import logging
 import os
 from groq import Groq
 from langchain_core.prompts import PromptTemplate
-from config.settings import GROQ_API_KEY, GROQ_MODEL
+from config.settings import GROQ_API_KEY, OPENAI_API_KEY, GROQ_MODEL, LLM_PROVIDER
 
 log = logging.getLogger(__name__)
 
@@ -15,11 +15,16 @@ def generate_scene_data(topic: str, seo_title: str, script: str, is_shorts: bool
     """
     log.info("🎬 Director Agent is analyzing the script and planning scenes...")
     
-    if not GROQ_API_KEY:
-        log.warning("GROQ_API_KEY is missing. Falling back to simple slide extraction.")
+    if LLM_PROVIDER == "openai" and OPENAI_API_KEY:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        model_name = "gpt-4o"
+    elif GROQ_API_KEY:
+        client = Groq(api_key=GROQ_API_KEY)
+        model_name = GROQ_MODEL
+    else:
+        log.warning("No API keys found. Falling back to simple slide extraction.")
         return fallback_generate_scene_data(script, seo_title)
-
-    client = Groq(api_key=GROQ_API_KEY)
     
     format_instructions = """
     Return ONLY a valid JSON array of objects. Do not include any markdown formatting like ```json or ```.
@@ -50,7 +55,7 @@ def generate_scene_data(topic: str, seo_title: str, script: str, is_shorts: bool
 
     try:
         response = client.chat.completions.create(
-            model=GROQ_MODEL,
+            model=model_name,
             messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": user_prompt}

@@ -13,6 +13,7 @@ from pytrends.request import TrendReq
 
 from config.settings import (
     ANTHROPIC_API_KEY,
+    OPENAI_API_KEY,
     GROQ_API_KEY,
     GROQ_MODEL,
     LLM_PROVIDER,
@@ -33,6 +34,9 @@ def get_llm_client():
     if LLM_PROVIDER == "anthropic":
         import anthropic
         return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    elif LLM_PROVIDER == "openai":
+        from openai import OpenAI
+        return OpenAI(api_key=OPENAI_API_KEY)
     else:
         from groq import Groq
         return Groq(api_key=GROQ_API_KEY)
@@ -250,6 +254,16 @@ THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text ou
                 messages=[{"role": "user", "content": prompt}],
             )
             raw = response.content[0].text
+        elif LLM_PROVIDER == "openai":
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                max_tokens=8000,
+                temperature=0.7,
+                timeout=120,
+            )
+            raw = response.choices[0].message.content
         else:
             response = client.chat.completions.create(
                 model=GROQ_MODEL,

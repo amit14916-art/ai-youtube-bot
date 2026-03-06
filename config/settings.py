@@ -8,7 +8,7 @@ import os
 
 
 # ─── LLM SETTINGS (Open Source / Claude) ─────────────────
-LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "groq"
+LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "openai"
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or "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"
 GROQ_MODEL        = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
 
