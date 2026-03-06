@@ -1,7 +1,7 @@
 import os
 import logging
 from groq import Groq
-from config.settings import GROQ_API_KEY
+from config.settings import GROQ_API_KEY, OPENAI_API_KEY, LLM_PROVIDER
 from pydub import AudioSegment
 
 log = logging.getLogger(__name__)
@@ -13,14 +13,18 @@ def transcribe_audio_with_words(audio_path: str) -> list[dict]:
     """
     log.info(f"🎙️ Generating exact word timestamps using Whisper for {audio_path}...")
     
-    if not GROQ_API_KEY:
-        log.warning("No GROQ_API_KEY. Cannot generate word timestamps.")
+    if LLM_PROVIDER == "openai" and OPENAI_API_KEY:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        client_type = "openai"
+    elif GROQ_API_KEY:
+        client = Groq(api_key=GROQ_API_KEY)
+        client_type = "groq"
+    else:
+        log.warning("No valid API Key. Cannot generate word timestamps.")
         return []
 
-    client = Groq(api_key=GROQ_API_KEY)
-
-    # Groq has a 25MB limit. MP3s from PlayHT shouldn't exceed this unless they are huge.
-    # To be safe, we check size:
+    # Check size
     if os.path.getsize(audio_path) > 24 * 1024 * 1024:
         log.warning("Audio file too large for standard whisper request. Please implement chunking.")
         return []
@@ -28,13 +32,21 @@ def transcribe_audio_with_words(audio_path: str) -> list[dict]:
     for attempt in range(3):
         try:
             with open(audio_path, "rb") as file:
-                transcription = client.audio.transcriptions.create(
-                  file=(os.path.basename(audio_path), file.read()),
-                  model="whisper-large-v3",
-                  response_format="verbose_json",
-                  timestamp_granularities=["word"]
-                )
-                
+                if client_type == "openai":
+                    transcription = client.audio.transcriptions.create(
+                      file=file,
+                      model="whisper-1",
+                      response_format="verbose_json",
+                      timestamp_granularities=["word"]
+                    )
+                else:
+                    transcription = client.audio.transcriptions.create(
+                      file=(os.path.basename(audio_path), file.read()),
+                      model="whisper-large-v3",
+                      response_format="verbose_json",
+                      timestamp_granularities=["word"]
+                    )
+
             words_data = []
             
             # If the SDK returns a dictionary
