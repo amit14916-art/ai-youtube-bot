@@ -10,7 +10,10 @@ echo "🚀 Starting AI YouTube Bot Setup on RunPod..."
 # ── 1. System Dependencies ────────────────────────────────
 echo "📦 Installing system packages..."
 apt-get update -qq
-apt-get install -y ffmpeg fonts-liberation fonts-open-sans git curl wget tmux > /dev/null 2>&1
+apt-get install -y ffmpeg fonts-liberation fonts-open-sans git curl wget tmux \
+  libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgbm1 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libasound2 \
+  libxss1 libxtst6 xvfb > /dev/null 2>&1
 echo "✅ System packages installed"
 
 # ── 2. Node.js 20 ─────────────────────────────────────────
