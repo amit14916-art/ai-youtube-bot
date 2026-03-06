@@ -265,8 +265,7 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         stock_path = ""
         is_video = False
         
-        if idx > 0:
-             stock_path = get_stock_video(h, orientation=orientation, min_duration=int(bg_duration_sec))
+        stock_path = get_stock_video(h, orientation=orientation, min_duration=int(bg_duration_sec))
              
         bg_path = stock_path
         is_video = bool(stock_path)
@@ -365,7 +364,7 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         abs_out_path,
         "--props", "props.json",
         "--public-dir", public_dir,
-        "--concurrency", "2",          # Limit CPU threads to avoid OOM on CI
+        "--concurrency", "1",          # Limit CPU threads to avoid OOM on CI
         "--log", "verbose",
     ]
     

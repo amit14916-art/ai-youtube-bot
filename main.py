@@ -137,6 +137,8 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
             
             # Upload Long Video
             if not shorts_only:
+                if not video_path or not os.path.exists(video_path):
+                    raise ValueError("Long video generation failed (missing video file).")
                 log.info("🚀 Uploading Long Video...")
                 url = upload_to_youtube(content, video_path, thumbnail_path)
                 result["youtube_url"] = url
@@ -145,6 +147,8 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
             
             # Upload Shorts
             if not long_only:
+                if not shorts_path or not os.path.exists(shorts_path):
+                    raise ValueError("Shorts video generation failed (missing short video file).")
                 log.info("🚀 Uploading Shorts Video...")
                 content_shorts = content.copy()
                 content_shorts["seo_title"] = f"{content['seo_title'][:50]}... #shorts"
@@ -239,8 +243,17 @@ if __name__ == "__main__":
     if args.schedule:
         start_scheduler()
     else:
-        result = run_pipeline(dry_run=args.dry_run, shorts_only=args.shorts_only, long_only=args.long_only, topic=args.topic)
-        if result and result.get("status") in ("uploaded", "dry_run_complete"):
-            sys.exit(0)
-        else:
-            sys.exit(1)
+        for attempt in range(3):
+            try:
+                result = run_pipeline(dry_run=args.dry_run, shorts_only=args.shorts_only, long_only=args.long_only, topic=args.topic)
+                if result and result.get("status") in ("uploaded", "dry_run_complete"):
+                    sys.exit(0)
+                log.warning(f"Run failed with status {result.get('status')} (attempt {attempt+1}/3). Retrying in 60s...")
+            except Exception as e:
+                log.error(f"Critical error in main wrapper: {e}")
+            
+            if attempt < 2:
+                import time
+                time.sleep(60)
+                
+        sys.exit(1)

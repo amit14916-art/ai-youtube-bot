@@ -35,7 +35,15 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
 
         videos = data.get("videos", [])
         if not videos:
-            log.info(f"No Pexels videos found for: {query}")
+            log.info(f"No Pexels videos found for: {query}, falling back to generic tech b-roll...")
+            fallback_query = random.choice(["technology", "abstract network", "artificial intelligence", "data flowing", "cyber security", "futuristic light"])
+            params["query"] = fallback_query
+            resp = requests.get(url, headers=headers, params=params, timeout=15)
+            data = resp.json()
+            videos = data.get("videos", [])
+            
+        if not videos:
+            log.info("Even fallback failed to find Pexels footage.")
             return ""
 
         # Filter for videos with decent quality and duration
