@@ -358,6 +358,16 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
     log.info(f"Triggering Remotion Renderer -> {abs_out_path}")
     
     npx_cmd = "npx.cmd" if os.name == "nt" else "npx"
+    
+    # Detect system Chrome for RunPod/Linux compatibility
+    chrome_paths = [
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
+    ]
+    system_chrome = next((p for p in chrome_paths if os.path.exists(p)), None)
+    
     cmd = [
         npx_cmd, "remotion", "render",
         "src/index.ts", "MainVideo",
@@ -367,6 +377,9 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         "--concurrency", "1",          # Limit CPU threads to avoid OOM on CI
         "--log", "verbose",
     ]
+    if system_chrome:
+        cmd += ["--browser-executable-path", system_chrome]
+        log.info(f"Using system Chrome: {system_chrome}")
     
     try:
         subprocess.run(cmd, cwd=remotion_dir, check=True, timeout=4800)  # 80-min hard cap
