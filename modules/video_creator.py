@@ -374,7 +374,7 @@ def create_video(content: dict, audio_path: str, job_id: str, is_shorts: bool = 
         abs_out_path,
         "--props", "props.json",
         "--public-dir", public_dir,
-        "--concurrency", "1",          # Limit CPU threads to avoid OOM on CI
+        "--concurrency", os.getenv("REMOTION_CONCURRENCY", "1"),  # Set to 4+ on RunPod
         "--log", "verbose",
     ]
     if system_chrome:
