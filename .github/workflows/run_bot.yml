@@ -32,21 +32,12 @@ jobs:
           python-version: '3.11'
           cache: 'pip'          # Cache pip deps across runs for speed
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: remotion_app/package-lock.json
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg fonts-liberation fonts-open-sans > /dev/null
 
-      - name: Install Remotion dependencies
-        working-directory: ./remotion_app
-        run: npm ci --prefer-offline
 
       - name: Install Python Dependencies
         run: |
@@ -68,10 +59,12 @@ jobs:
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}
           GOOGLE_SEARCH_ENGINE_ID: ${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           PLAYHT_USER_ID: ${{ secrets.PLAYHT_USER_ID }}
           PLAYHT_API_KEY: ${{ secrets.PLAYHT_API_KEY }}
           FAL_API_KEY: ${{ secrets.FAL_API_KEY }}
