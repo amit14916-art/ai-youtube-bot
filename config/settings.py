@@ -7,13 +7,17 @@ Fill in your API keys and preferences below before running.
 import os
 
 
-# ─── LLM SETTINGS (Open Source / Claude) ─────────────────
-LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "openai"   # switched from groq (key keeps expiring)
+# ─── LLM SETTINGS ────────────────────────────────────────
+# Using Gemini (FREE tier - 15 req/min, 1M tokens/day, key never expires)
+LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "gemini"
+GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY") or ""  # Get free key: aistudio.google.com
+GEMINI_MODEL      = os.getenv("GEMINI_MODEL") or "gemini-1.5-flash"  # Free + fast
+
+# Fallback providers (only used if Gemini fails)
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or ""
 GROQ_MODEL        = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
-
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or "YOUR_ANTHROPIC_API_KEY"
-OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY") or "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"
+OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY") or ""
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or ""
 
 # ─── YOUTUBE DATA API v3 ─────────────────────────────────
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY") or "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s"

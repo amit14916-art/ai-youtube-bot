@@ -7,7 +7,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-import anthropic
 import requests
 from pytrends.request import TrendReq
 
@@ -16,6 +15,8 @@ from config.settings import (
     OPENAI_API_KEY,
     GROQ_API_KEY,
     GROQ_MODEL,
+    GEMINI_API_KEY,
+    GEMINI_MODEL,
     LLM_PROVIDER,
     GOOGLE_SEARCH_API_KEY,
     GOOGLE_SEARCH_ENGINE_ID,
@@ -33,13 +34,17 @@ log = logging.getLogger(__name__)
 def get_llm_client(provider: str = None):
     """Return (client, provider_name) for the chosen LLM provider."""
     p = provider or LLM_PROVIDER
-    if p == "anthropic":
+    if p == "gemini":
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+        return genai.GenerativeModel(GEMINI_MODEL), "gemini"
+    elif p == "anthropic":
         import anthropic
         return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY), "anthropic"
     elif p == "openai":
         from openai import OpenAI
         return OpenAI(api_key=OPENAI_API_KEY), "openai"
-    else:
+    else:  # groq
         from groq import Groq
         return Groq(api_key=GROQ_API_KEY), "groq"
 
@@ -242,13 +247,23 @@ THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text ou
 
     import json, re
 
-    # --- Auto-fallback provider order ---
-    # Try primary (LLM_PROVIDER), then fallback chain
+    # --- Auto-fallback provider order: Gemini (free) → Groq → OpenAI ---
     provider_order = [LLM_PROVIDER]
-    if LLM_PROVIDER == "groq" and OPENAI_API_KEY and not OPENAI_API_KEY.startswith("YOUR"):
-        provider_order.append("openai")
-    elif LLM_PROVIDER == "openai" and GROQ_API_KEY:
-        provider_order.append("groq")
+    if LLM_PROVIDER == "gemini":
+        if GROQ_API_KEY:
+            provider_order.append("groq")
+        if OPENAI_API_KEY:
+            provider_order.append("openai")
+    elif LLM_PROVIDER == "groq":
+        if GEMINI_API_KEY:
+            provider_order.insert(0, "gemini")  # try gemini first
+        if OPENAI_API_KEY:
+            provider_order.append("openai")
+    elif LLM_PROVIDER == "openai":
+        if GEMINI_API_KEY:
+            provider_order.insert(0, "gemini")  # try gemini first
+        if GROQ_API_KEY:
+            provider_order.append("groq")
 
     data = None
     last_error = None
@@ -267,7 +282,12 @@ THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text ou
 
         for attempt in range(max_retries + 1):
             try:
-                if pname == "anthropic":
+                if pname == "gemini":
+                    # Gemini uses generate_content, not chat.completions
+                    gemini_prompt = retry_prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON, no text before or after."
+                    response = client.generate_content(gemini_prompt)
+                    raw = response.text
+                elif pname == "anthropic":
                     response = client.messages.create(
                         model="claude-3-5-sonnet-20241022",
                         max_tokens=8000,
@@ -343,7 +363,7 @@ THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text ou
     if not data:
         raise ValueError(
             f"All LLM providers failed. Last error: {last_error}\n"
-            f"🔧 FIX: Check your API keys in settings.py or GitHub Secrets (GROQ_API_KEY, OPENAI_API_KEY)"
+            f"🔧 FIX: Set GEMINI_API_KEY (free at aistudio.google.com) in GitHub Secrets"
         )
 
     log.info(f"Topic chosen: {data['chosen_topic']} | Script: {len(data.get('script','').split())} words")
