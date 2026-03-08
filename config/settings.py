@@ -8,7 +8,7 @@ import os
 
 
 # ─── LLM SETTINGS (Open Source / Claude) ─────────────────
-LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "groq"
+LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "openai"   # switched from groq (key keeps expiring)
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or ""
 GROQ_MODEL        = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
 
@@ -42,8 +42,8 @@ PLAYHT_VOICE_ID = os.getenv("PLAYHT_VOICE_ID") or "s3://voice-cloning-zero-shot/
 PLAYHT_VOICE_ID_2 = os.getenv("PLAYHT_VOICE_ID_2") or "s3://voice-cloning-zero-shot/775ae416-49bb-4fb6-bd45-740f205d20a1/jason/manifest.json" # Default Host B (Male)
 
 # ─── IMAGE/VIDEO GENERATION (FAL.AI) ─────────────────────
-FAL_API_KEY = os.getenv("FAL_API_KEY") or "80820a4b-404e-4571-821a-b44efebfebb6:e1cc228267b3a2b2275b04e932ad6319"
-USE_AI_VIDEO_BROLL = False # Disabled: AI video gen takes 5+ mins per scene, kills CI runner
+FAL_API_KEY = os.getenv("FAL_API_KEY") or ""  # Fal.ai removed — using Pexels + Pollinations only
+USE_AI_VIDEO_BROLL = False
 
 # ─── STOCK FOOTAGE (Pexels) ─────────────────────────────
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY") or "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N"
@@ -53,8 +53,8 @@ WHATSAPP_PHONE = os.getenv("WHATSAPP_PHONE") or ""
 WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY") or ""
 
 # ─── VIDEO SETTINGS ──────────────────────────────────────
-VIDEO_WIDTH  = 1920
-VIDEO_HEIGHT = 1080
+VIDEO_WIDTH  = 1280
+VIDEO_HEIGHT = 720
 VIDEO_FPS    = 24
 VIDEO_DURATION_PER_SLIDE = 6
 BACKGROUND_MUSIC_VOLUME  = 0.08
@@ -70,7 +70,7 @@ if not FONT_PATH:
 # ─── RESEARCH SETTINGS ───────────────────────────────────
 NICHE           = "AGENTIC AI WORLD"
 RESEARCH_TOPICS = 5          # Number of trending topics to research
-SCRIPT_WORDS    = 900        # ~6 min video — keeps Remotion render within CI time limit
+SCRIPT_WORDS    = 600        # ~4 min video — fits GitHub Actions 7GB RAM limit
 
 # Google Trends geo (US, IN, GB, etc.)
 TRENDS_GEO = "US"
