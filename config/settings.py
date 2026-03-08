@@ -8,14 +8,15 @@ import os
 
 
 # ─── LLM SETTINGS ────────────────────────────────────────
-# Using Gemini (FREE tier - 15 req/min, 1M tokens/day, key never expires)
-LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "gemini"
-GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY") or ""   # ⚠️ Set GEMINI_API_KEY in GitHub Secrets!
-GEMINI_MODEL      = os.getenv("GEMINI_MODEL") or "gemini-2.0-flash"
-
-# Fallback providers (only used if Gemini fails)
-GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or ""
+# Primary: Groq (FREE, fast, no quota issues)
+# Fallback: Gemini (FREE, set GEMINI_API_KEY in GitHub Secrets)
+LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "groq"
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or ""   # ✅ Set GROQ_API_KEY in GitHub Secrets!
 GROQ_MODEL        = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
+
+# Fallback providers
+GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY") or ""
+GEMINI_MODEL      = os.getenv("GEMINI_MODEL") or "gemini-2.0-flash"
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY") or ""
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or ""
 
