@@ -2,7 +2,7 @@
 # Install with: pip install -r requirements.txt
 
 # ── Core AI / LLM ─────────────────────────────────────────────
-google-generativeai>=0.7.0        # Gemini FREE tier (primary LLM - no expiry issues)
+google-genai>=1.0.0               # Gemini FREE tier (primary LLM - no expiry issues)
 anthropic>=0.25.0                  # Claude AI (optional fallback)
 groq>=0.9.0                       # Groq (optional fallback)
 openai>=1.0.0                     # OpenAI (optional fallback - already in TTS section)

@@ -35,9 +35,9 @@ def get_llm_client(provider: str = None):
     """Return (client, provider_name) for the chosen LLM provider."""
     p = provider or LLM_PROVIDER
     if p == "gemini":
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        return genai.GenerativeModel(GEMINI_MODEL), "gemini"
+        from google import genai as google_genai
+        client_obj = google_genai.Client(api_key=GEMINI_API_KEY)
+        return client_obj, "gemini"
     elif p == "anthropic":
         import anthropic
         return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY), "anthropic"
@@ -283,9 +283,12 @@ THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text ou
         for attempt in range(max_retries + 1):
             try:
                 if pname == "gemini":
-                    # Gemini uses generate_content, not chat.completions
+                    # New google-genai SDK syntax
                     gemini_prompt = retry_prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON, no text before or after."
-                    response = client.generate_content(gemini_prompt)
+                    response = client.models.generate_content(
+                        model=GEMINI_MODEL,
+                        contents=gemini_prompt,
+                    )
                     raw = response.text
                 elif pname == "anthropic":
                     response = client.messages.create(
