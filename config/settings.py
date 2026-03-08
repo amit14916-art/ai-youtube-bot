@@ -12,7 +12,7 @@ import os
 # Fallback: Gemini (FREE, set GEMINI_API_KEY in GitHub Secrets)
 LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "groq"
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or ""   # ✅ Set GROQ_API_KEY in GitHub Secrets!
-GROQ_MODEL        = os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
+GROQ_MODEL        = os.getenv("GROQ_MODEL") or "llama3-8b-8192"
 
 # Fallback providers
 GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY") or ""
