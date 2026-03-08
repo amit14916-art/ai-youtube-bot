@@ -11,7 +11,7 @@ import os
 # Using Gemini (FREE tier - 15 req/min, 1M tokens/day, key never expires)
 LLM_PROVIDER      = os.getenv("LLM_PROVIDER") or "gemini"
 GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY") or "AIzaSyDJzdFWWSve-3DTgBpnCzwgFkJdYQpC3rE"
-GEMINI_MODEL      = os.getenv("GEMINI_MODEL") or "gemini-flash-latest"  # Confirmed working
+GEMINI_MODEL      = os.getenv("GEMINI_MODEL") or "gemini-2.0-flash"  # ✅ Correct model name
 
 # Fallback providers (only used if Gemini fails)
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY") or ""
