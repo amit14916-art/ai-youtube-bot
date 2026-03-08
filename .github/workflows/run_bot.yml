@@ -54,6 +54,32 @@ jobs:
         env:
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
 
+      - name: Refresh YouTube Token
+        run: |
+          python - <<'EOF'
+          import json, os
+          from google.oauth2.credentials import Credentials
+          from google.auth.transport.requests import Request
+
+          SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube"]
+          TOKEN_FILE = "config/token.json"
+
+          try:
+              creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+              if creds.expired and creds.refresh_token:
+                  print("Token expired - refreshing...")
+                  creds.refresh(Request())
+                  with open(TOKEN_FILE, "w") as f:
+                      f.write(creds.to_json())
+                  print("✅ Token refreshed and saved!")
+              elif creds.valid:
+                  print("✅ Token is still valid.")
+              else:
+                  print("⚠️ Token cannot be refreshed - no refresh_token!")
+          except Exception as e:
+              print(f"❌ Token refresh failed: {e}")
+          EOF
+
       - name: Run Bot
         timeout-minutes: 85
         env:
