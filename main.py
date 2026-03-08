@@ -69,6 +69,26 @@ except Exception as e:
 
 
 # -----------------------------------------------------------------
+#  STARTUP KEY VALIDATION
+# -----------------------------------------------------------------
+
+def check_api_keys():
+    """Warn about missing/invalid API keys before the pipeline starts."""
+    from config.settings import GROQ_API_KEY, OPENAI_API_KEY, LLM_PROVIDER
+    issues = []
+    if LLM_PROVIDER == "groq" and not GROQ_API_KEY:
+        issues.append("❌ GROQ_API_KEY is empty! Set it in settings.py or GitHub Secrets.")
+    if LLM_PROVIDER == "openai" and (not OPENAI_API_KEY or OPENAI_API_KEY.startswith("YOUR")):
+        issues.append("❌ OPENAI_API_KEY is missing/placeholder!")
+    for msg in issues:
+        log.error(msg)
+    if issues:
+        log.error("⚠️  Bot will attempt fallback providers, but fix your API keys to avoid failures!")
+
+
+
+
+# -----------------------------------------------------------------
 #  CORE PIPELINE
 # -----------------------------------------------------------------
 
@@ -83,6 +103,9 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
     log.info("=" * 60)
 
     result = {"job_id": job_id, "status": "started", "timestamp": datetime.now().isoformat()}
+
+    # Check API keys upfront (warns in log if keys are missing/bad)
+    check_api_keys()
 
     try:
         # -- PHASE 1: RESEARCH ----------------------------------

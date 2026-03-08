@@ -30,16 +30,18 @@ from modules.history_manager import get_recent_topics, save_topic_to_history
 log = logging.getLogger(__name__)
 
 # Lazy init clients
-def get_llm_client():
-    if LLM_PROVIDER == "anthropic":
+def get_llm_client(provider: str = None):
+    """Return (client, provider_name) for the chosen LLM provider."""
+    p = provider or LLM_PROVIDER
+    if p == "anthropic":
         import anthropic
-        return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    elif LLM_PROVIDER == "openai":
+        return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY), "anthropic"
+    elif p == "openai":
         from openai import OpenAI
-        return OpenAI(api_key=OPENAI_API_KEY)
+        return OpenAI(api_key=OPENAI_API_KEY), "openai"
     else:
         from groq import Groq
-        return Groq(api_key=GROQ_API_KEY)
+        return Groq(api_key=GROQ_API_KEY), "groq"
 
 
 # -----------------------------------------------------------------
@@ -238,72 +240,114 @@ Respond ONLY in valid JSON (no text outside the JSON block):
 
 THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text outside the JSON."""
 
-    log.info(f"Sending research data to {LLM_PROVIDER.upper()} for topic selection + content generation…")
-    
     import json, re
-    client = get_llm_client()
-    
-    max_retries = 2
-    data = None
-    
-    for attempt in range(max_retries + 1):
-        if LLM_PROVIDER == "anthropic":
-            response = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=8000,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = response.content[0].text
-        elif LLM_PROVIDER == "openai":
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"},
-                max_tokens=8000,
-                temperature=0.7,
-                timeout=120,
-            )
-            raw = response.choices[0].message.content
-        else:
-            response = client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"},
-                max_tokens=8000,
-                temperature=0.7,
-                timeout=120,  # 2 min timeout for slow networks
-            )
-            raw = response.choices[0].message.content
 
-        # Extract JSON even if wrapped in markdown code block
-        match = re.search(r"\{[\s\S]+\}", raw)
-        if not match:
-            log.warning(f"Attempt {attempt+1}: LLM did not return valid JSON. Retrying...")
+    # --- Auto-fallback provider order ---
+    # Try primary (LLM_PROVIDER), then fallback chain
+    provider_order = [LLM_PROVIDER]
+    if LLM_PROVIDER == "groq" and OPENAI_API_KEY and not OPENAI_API_KEY.startswith("YOUR"):
+        provider_order.append("openai")
+    elif LLM_PROVIDER == "openai" and GROQ_API_KEY:
+        provider_order.append("groq")
+
+    data = None
+    last_error = None
+
+    for provider_attempt, current_provider in enumerate(provider_order):
+        log.info(f"Sending research data to {current_provider.upper()} for topic selection + content generation{'  (FALLBACK)' if provider_attempt > 0 else ''}.")
+        try:
+            client, pname = get_llm_client(current_provider)
+        except Exception as e:
+            log.warning(f"Could not init {current_provider} client: {e}")
+            last_error = e
             continue
 
-        parsed = json.loads(match.group())
-        script_word_count = len(parsed.get("script", "").split())
-        log.info(f"Attempt {attempt+1}: Script word count = {script_word_count} (min required: {min_words})")
-        
-        if script_word_count >= min_words:
-            data = parsed
-            break
-        elif attempt < max_retries:
-            log.warning(f"Script too short ({script_word_count} words). Retrying with stronger enforcement...")
-            # Strengthen the prompt for retry
-            prompt = prompt.replace(
-                f"THE SCRIPT FIELD MUST BE AT LEAST {min_words} WORDS.",
-                f"THE SCRIPT FIELD MUST BE AT LEAST {min_words} WORDS. Previous attempt only had {script_word_count} words — WRITE MORE.\nThe script field in the previous response was too short. This time, write a MUCH LONGER, more detailed script."
-            )
-        else:
-            log.warning(f"Script still short after {max_retries} retries ({script_word_count} words). Using best result.")
-            data = parsed
-    
+        max_retries = 2
+        retry_prompt = prompt
+
+        for attempt in range(max_retries + 1):
+            try:
+                if pname == "anthropic":
+                    response = client.messages.create(
+                        model="claude-3-5-sonnet-20241022",
+                        max_tokens=8000,
+                        messages=[{"role": "user", "content": retry_prompt}],
+                    )
+                    raw = response.content[0].text
+                elif pname == "openai":
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": retry_prompt}],
+                        response_format={"type": "json_object"},
+                        max_tokens=8000,
+                        temperature=0.7,
+                        timeout=120,
+                    )
+                    raw = response.choices[0].message.content
+                else:  # groq
+                    response = client.chat.completions.create(
+                        model=GROQ_MODEL,
+                        messages=[{"role": "user", "content": retry_prompt}],
+                        response_format={"type": "json_object"},
+                        max_tokens=8000,
+                        temperature=0.7,
+                        timeout=120,
+                    )
+                    raw = response.choices[0].message.content
+
+            except Exception as e:
+                err_str = str(e)
+                # Auth errors → skip to next provider immediately
+                if "401" in err_str or "invalid_api_key" in err_str or "AuthenticationError" in err_str:
+                    log.error(f"❌ {current_provider.upper()} API Key is INVALID (401). "
+                              f"Go regenerate it at the provider dashboard.")
+                    if provider_attempt < len(provider_order) - 1:
+                        log.warning(f"Falling back to next provider: {provider_order[provider_attempt+1].upper()}")
+                    last_error = e
+                    break  # break inner loop → try next provider
+                elif "timeout" in err_str.lower() or "ConnectTimeout" in err_str:
+                    log.warning(f"{current_provider.upper()} timed out (attempt {attempt+1}). "
+                                 f"{'Retrying...' if attempt < max_retries else 'Switching provider.'}")
+                    last_error = e
+                    if attempt >= max_retries:
+                        break  # try next provider
+                    continue
+                else:
+                    log.error(f"{current_provider.upper()} error: {e}")
+                    last_error = e
+                    break
+            else:
+                # Extract JSON even if wrapped in markdown code block
+                match = re.search(r"\{[\s\S]+\}", raw)
+                if not match:
+                    log.warning(f"Attempt {attempt+1}: LLM did not return valid JSON. Retrying...")
+                    continue
+
+                parsed = json.loads(match.group())
+                script_word_count = len(parsed.get("script", "").split())
+                log.info(f"Attempt {attempt+1}: Script word count = {script_word_count} (min required: {min_words})")
+
+                if script_word_count >= min_words:
+                    data = parsed
+                    break
+                elif attempt < max_retries:
+                    log.warning(f"Script too short ({script_word_count} words). Retrying with stronger enforcement...")
+                    retry_prompt = retry_prompt + f"\n\nPREVIOUS ATTEMPT HAD ONLY {script_word_count} WORDS. WRITE A MUCH LONGER SCRIPT THIS TIME — MINIMUM {min_words} WORDS."
+                else:
+                    log.warning(f"Script still short after retries ({script_word_count} words). Using best result.")
+                    data = parsed
+
+        if data:
+            break  # success — exit provider loop
+
     if not data:
-        raise ValueError(f"{LLM_PROVIDER.upper()} did not return valid JSON after {max_retries+1} attempts")
-    
+        raise ValueError(
+            f"All LLM providers failed. Last error: {last_error}\n"
+            f"🔧 FIX: Check your API keys in settings.py or GitHub Secrets (GROQ_API_KEY, OPENAI_API_KEY)"
+        )
+
     log.info(f"Topic chosen: {data['chosen_topic']} | Script: {len(data.get('script','').split())} words")
-    
+
     # Save to history
     save_topic_to_history(data['chosen_topic'])
     return data
