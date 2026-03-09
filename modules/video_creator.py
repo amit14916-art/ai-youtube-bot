@@ -223,7 +223,7 @@ def create_text_overlay_clip(
         output_path
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
         log.warning(f"FFmpeg drawtext failed (scene): {result.stderr[-600:]}")
         return False

@@ -64,9 +64,14 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
         chosen_video = random.choice(valid_videos[:5])
         video_files = chosen_video.get("video_files", [])
         
-        # Sort video files by highest resolution up to 4K to guarantee crisp footage
-        video_files.sort(key=lambda x: (x.get("width", 0) * x.get("height", 0)), reverse=True)
-        best_file = video_files[0] if video_files else None
+        # Sort video files by highest resolution but STRICTLY UNDER 3,000,000 pixels (1080p area is ~2mil)
+        # to prevent FFmpeg decoding OOM and 120s timeouts on GitHub Actions runner.
+        safe_files = [x for x in video_files if (x.get("width", 0) * x.get("height", 0)) <= 3000000]
+        if not safe_files:
+            safe_files = video_files # fallback to all if none exist
+            
+        safe_files.sort(key=lambda x: (x.get("width", 0) * x.get("height", 0)), reverse=True)
+        best_file = safe_files[0] if safe_files else None
 
         if not best_file: return ""
         download_url = best_file.get("link")
