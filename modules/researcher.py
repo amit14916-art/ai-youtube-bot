@@ -191,7 +191,7 @@ def pick_best_topic_and_generate(
         data_context = f"TRENDING DATA:\n=== Google Trends ===\n{gt_topics}\n\n=== Top YouTube Videos ===\n{yt_titles}"
 
     target_words = 180 if shorts_only else SCRIPT_WORDS
-    min_words = 150 if shorts_only else 900  # Minimum acceptable word count
+    min_words = 150 if shorts_only else SCRIPT_WORDS  # Minimum acceptable word count
 
     # Pre-compute all conditional strings — backslashes not allowed inside f-string {} in Python < 3.12
     fmt_label = "60-second vertical Short (punchy, fast-paced, TikTok style)" if shorts_only else "long-form deep-dive podcast episode (10-15 min equivalent)"
