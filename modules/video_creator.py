@@ -206,8 +206,9 @@ def create_text_overlay_clip(
         f":fontsize=30:fontcolor=white@0.6"
         f":x=20:y=h-45"
     )
-
-    full_filter = f"scale={w}:{h},setsar=1,{shadow},{main_text},{branding}"
+    # Crop perfectly instead of squashing
+    scale_crop = f"scale='max({w},a*{h})':'max({h},{w}/a)',crop={w}:{h}"
+    full_filter = f"{scale_crop},setsar=1,{shadow},{main_text},{branding}"
 
     cmd = [
         ffmpeg, "-y",
@@ -306,9 +307,11 @@ def create_video(content: dict, audio_path: str, job_id: str,
         slides = script_to_slides(content["script"], content["seo_title"])
         scenes = [{"text": s, "keyword": "technology artificial intelligence"} for s in slides]
 
+    # 3. Word-count proportional timing to sync text precisely to audio
+    total_words = sum(max(1, len(str(scene.get("text", "")).split())) for scene in scenes)
     n_scenes = max(len(scenes), 1)
     sec_per_scene = total_duration / n_scenes
-    log.info(f"Scenes: {n_scenes}, Duration per scene: {sec_per_scene:.2f}s")
+    log.info(f"Scenes: {n_scenes}, Expected Words: {total_words}, Duration: {total_duration:.1f}s")
 
     # 3. Get background image for fallback
     try:
@@ -328,7 +331,10 @@ def create_video(content: dict, audio_path: str, job_id: str,
         scene_text = scene.get("text", "")
         keyword = scene.get("keyword", "technology")
         is_title_slide = (i == 0)
-        clip_duration = max(sec_per_scene, 2.0)
+        
+        # Exact proportional clip duration
+        words_in_scene = max(1, len(str(scene_text).split()))
+        clip_duration = max((words_in_scene / total_words) * total_duration, 2.0)
 
         clip_out = os.path.join(OUTPUT_DIR, f"{job_id}_clip_{i:04d}.mp4")
 
