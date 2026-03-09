@@ -228,6 +228,9 @@ SCRIPT REQUIREMENTS (MOST IMPORTANT):
 - {req1}
 - {req2}
 - {req3}
+- MANDATORY: The first sentence MUST be an extremely powerful, curiosity-inducing HOOK (a shocking fact or question) that forces the viewer to watch until the end.
+- MANDATORY: Do NOT ask to like or subscribe at the beginning.
+- MANDATORY: The very end of the CTA MUST directly ask viewers to LIKE and SUBSCRIBE to the channel.
 
 Respond ONLY in valid JSON (no text outside the JSON block):
 
@@ -347,6 +350,14 @@ THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text ou
                     continue
 
                 parsed = json.loads(match.group())
+                
+                # Clean up LLM prompt placeholders from the generated script
+                if "script" in parsed:
+                    import re
+                    script_text = parsed["script"]
+                    clean_script = re.sub(r'\[?(Hook|Deep dive|Controversy|Future impact|CTA).*?words\]?', '', script_text, flags=re.IGNORECASE)
+                    parsed["script"] = clean_script.strip()
+                    
                 script_word_count = len(parsed.get("script", "").split())
                 log.info(f"Attempt {attempt+1}: Script word count = {script_word_count} (min required: {min_words})")
 

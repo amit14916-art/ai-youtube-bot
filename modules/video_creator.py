@@ -182,9 +182,12 @@ def create_text_overlay_clip(
     for fp in [FONT_PATH,
                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-               "/usr/share/fonts/truetype/open-sans/OpenSans-Bold.ttf"]:
+               "/usr/share/fonts/truetype/open-sans/OpenSans-Bold.ttf",
+               "C:/Windows/Fonts/arialbd.ttf"]:
         if fp and os.path.exists(fp):
-            font_arg = f":fontfile='{fp}'"
+            # Replace backslashes with forward slashes for FFmpeg filter parsing
+            fp_clean = fp.replace("\\", "/")
+            font_arg = f":fontfile='{fp_clean}'"
             break
 
     # Text position: center-bottom area
@@ -206,9 +209,15 @@ def create_text_overlay_clip(
         f":fontsize=30:fontcolor=white@0.6"
         f":x=20:y=h-45"
     )
+    subscribe_cta = (
+        f"drawtext=text='SUBSCRIBE'{font_arg}"
+        f":fontsize=35:fontcolor=white@0.95"
+        f":x=w-text_w-30:y=h-50"
+        f":box=1:boxcolor=red@0.8:boxborderw=10"
+    )
     # Crop perfectly instead of squashing
     scale_crop = f"scale='max({w},a*{h})':'max({h},{w}/a)',crop={w}:{h}"
-    full_filter = f"{scale_crop},setsar=1,{shadow},{main_text},{branding}"
+    full_filter = f"{scale_crop},setsar=1,{shadow},{main_text},{branding},{subscribe_cta}"
 
     cmd = [
         ffmpeg, "-y",
