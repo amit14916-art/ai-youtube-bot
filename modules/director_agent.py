@@ -30,7 +30,7 @@ def generate_scene_data(topic: str, seo_title: str, script: str, is_shorts: bool
     Return ONLY a valid JSON array of objects. Do not include any markdown formatting like ```json or ```.
     Each object must have exactly these keys:
     - "text": The exact dialogue text for the scene (keep it strictly synchronized with the script, break it down mostly by speaker or every 2-3 sentences max).
-    - "keyword": A 1-2 word VERY BROADER stock footage keyword for Pexels (e.g. "technology", "abstract data", "server", "scifi", "computer"). Avoid highly specific or complex terms to ensure we find a matching video!
+    - "keyword": A highly contextual 1-3 word stock footage keyword for Pexels that visually represents the SUBJECT of the scene. Example: if talking about healthcare, use "hospital surgery"; if talking about coding, use "programmer typing"; if about jobs, use "office workers". Do NOT just use "technology" everywhere. It MUST visually match what is being spoken!
     - "prompt": A detailed cinematic prompt for generating an AI video on Luma/Hunyuan (e.g. "A futuristic glowing robot analyzing code, cinematic lighting, 4k macro").
     """
 

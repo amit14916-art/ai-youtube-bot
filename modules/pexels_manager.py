@@ -34,6 +34,17 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
         data = resp.json()
 
         videos = data.get("videos", [])
+        
+        # Fallback 1: Broaden to first word if multi-word query fails
+        if not videos and len(query.split()) > 1:
+            fallback_query = query.split()[0]
+            log.info(f"No Pexels videos found for '{query}', falling back to broader term: '{fallback_query}'...")
+            params["query"] = fallback_query
+            resp = requests.get(url, headers=headers, params=params, timeout=15)
+            data = resp.json()
+            videos = data.get("videos", [])
+
+        # Fallback 2: Generic B-Roll
         if not videos:
             log.info(f"No Pexels videos found for: {query}, falling back to generic tech b-roll...")
             fallback_query = random.choice(["technology", "abstract network", "artificial intelligence", "data flowing", "cyber security", "futuristic light"])
