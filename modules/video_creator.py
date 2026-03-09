@@ -166,8 +166,10 @@ def create_text_overlay_clip(
     """
     ffmpeg = ffmpeg_path or FFMPEG_PATH
     clean_text = text.replace("Host A:", "").replace("Host B:", "").strip()
-    # Escape special characters for FFmpeg drawtext
-    clean_text = clean_text.replace("\\", "").replace("'", "").replace(":", " -").replace("%", "%%")
+    # Escape special characters for FFmpeg drawtext filter parsing
+    # Commas must be escaped with a backslash in filter strings
+    clean_text = clean_text.replace("\\", "/").replace("'", "").replace("%", "%%")
+    clean_text = clean_text.replace(":", "\\:").replace(",", "\\,")
 
     # Wrap text at ~38 chars for overlay
     wrapped = textwrap.wrap(clean_text, width=38)[:4]
@@ -191,18 +193,18 @@ def create_text_overlay_clip(
             break
 
     # Text position: center-bottom area
-    text_y = "h-th-100" if not is_title else "(h-th)/2"
+    text_y = "h-text_h-100" if not is_title else "(h-text_h)/2"
 
     # Build drawtext filter with shadow
     shadow = (
         f"drawtext=text='{joined}'{font_arg}"
         f":fontsize={font_size}:fontcolor=black@0.8"
-        f":x=(w-tw)/2+3:y={text_y}+3:line_spacing=8"
+        f":x=(w-text_w)/2+3:y={text_y}+3:line_spacing=8"
     )
     main_text = (
         f"drawtext=text='{joined}'{font_arg}"
         f":fontsize={font_size}:fontcolor={text_color}@0.95"
-        f":x=(w-tw)/2:y={text_y}:line_spacing=8"
+        f":x=(w-text_w)/2:y={text_y}:line_spacing=8"
     )
     branding = (
         f"drawtext=text='AI NEWS DAILY'{font_arg}"
@@ -212,7 +214,7 @@ def create_text_overlay_clip(
     subscribe_cta = (
         f"drawtext=text='SUBSCRIBE'{font_arg}"
         f":fontsize=35:fontcolor=white@0.95"
-        f":x=w-tw-30:y=h-50"
+        f":x=w-text_w-30:y=h-50"
         f":box=1:boxcolor=red@0.8:boxborderw=10"
     )
     # Crop perfectly instead of squashing
