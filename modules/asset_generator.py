@@ -21,9 +21,9 @@ def generate_ai_image(prompt: str, job_id: str, index: int, width: int = 1920, h
     try:
         clean_prompt = "".join(c if c.isalnum() or c in " ,.-" else "" for c in prompt)[:500]
         full_prompt = (
-            f"{clean_prompt}, cinematic lighting, 8k resolution, highly detailed, "
-            "professional photography, premium tech aesthetic, clean sharp focus, "
-            "bokeh background, dramatic atmosphere"
+            f"{clean_prompt}, epic YouTube thumbnail background, highly detailed complex 3D render, "
+            f"glowing neon nodes, abstract tech diagrams, UI elements, Unreal Engine 5 render, "
+            f"cinematic dramatic lighting, 8k resolution, premium tech aesthetic, trending on ArtStation"
         )
         save_path = os.path.join(OUTPUT_DIR, f"{job_id}_img_{index}.jpg")
 

@@ -356,13 +356,20 @@ def create_video(content: dict, audio_path: str, job_id: str,
             else:
                 log.warning(f"Text overlay failed for scene {i+1}, falling back to image slide")
 
-        # Fallback: PIL image slide → video clip
+        # Fallback: PIL image slide → video clip (Unique AI Background)
+        try:
+            from modules.asset_generator import generate_ai_image
+            # Pollinations generates highly detailed scene image
+            scene_bg = generate_ai_image(scene.get("prompt", keyword), job_id, i+100, width=w, height=h)
+        except Exception:
+            scene_bg = ""
+
         img_path = render_slide_image(
             scene_text,
             bg_color=[(10, 15, 40), (15, 10, 45), (10, 30, 30), (30, 10, 20), (5, 20, 50), (20, 5, 35)][i % 6],
             w=w, h=h,
             is_title=is_title_slide,
-            bg_image_path=bg_path if i < 4 else ""
+            bg_image_path=scene_bg if scene_bg else bg_path
         )
         temp_files.append(img_path)
 
@@ -468,14 +475,15 @@ def create_thumbnail(content: dict, job_id: str, bg_path: str = "") -> str:
     else:
         img = Image.new("RGB", (1280, 720), (10, 15, 40))
 
-    # Gradient overlay (left-to-right darkening)
+    # Add a subtle vignette instead of a heavy black block to preserve the AI background details
     overlay = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
     o_draw = ImageDraw.Draw(overlay)
-    for x in range(0, 900):
-        alpha = int(230 * (1 - x / 900))
-        o_draw.line([(x, 0), (x, 720)], fill=(0, 0, 0, alpha))
+    for y in range(0, 150):
+        alpha = int(120 * (1 - y / 150))
+        o_draw.line([(0, y), (1280, y)], fill=(0, 0, 0, alpha))
+        o_draw.line([(0, 720 - y), (1280, 720 - y)], fill=(0, 0, 0, alpha))
     img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-
+    
     draw = ImageDraw.Draw(img)
     try:
         font_main = ImageFont.truetype(FONT_PATH, 105)
@@ -488,24 +496,36 @@ def create_thumbnail(content: dict, job_id: str, bg_path: str = "") -> str:
 
     # Main text
     text = content.get("thumbnail_text", "AI REVOLUTION").upper()
-    lines = textwrap.wrap(text, width=13)
-    start_y = 100
+    lines = textwrap.wrap(text, width=15)
+    start_y = 120
     for line in lines:
-        # Glow/shadow effect
-        for off in range(2, 10, 2):
-            draw.text((70 + off, start_y + off), line, font=font_main, fill=(0, 0, 0, 120))
-        color = (255, 215, 0) if ("AI" in line or len(lines) == 1) else (255, 255, 255)
-        draw.text((70, start_y), line, font=font_main, fill=color)
-        start_y += 125
+        color = (255, 230, 0) if ("AI" in line or len(lines) == 1) else (255, 255, 255)
+        # Deep shadow layer
+        draw.text((70 + 8, start_y + 8), line, font=font_main, fill=(0, 0, 0, 180))
+        # Stroke + Fill layer
+        try:
+            draw.text((70, start_y), line, font=font_main, fill=color, stroke_width=6, stroke_fill=(0, 0, 0))
+        except TypeError:
+            # Fallback for old pillow
+            for off_x in [-3,0,3]:
+                for off_y in [-3,0,3]:
+                    draw.text((70 + off_x, start_y + off_y), line, font=font_main, fill=(0,0,0))
+            draw.text((70, start_y), line, font=font_main, fill=color)
+        start_y += 115
 
     # Hook line
     hook = content.get("hook_line", "")[:80]
     if hook:
-        wrapped_hook = textwrap.wrap(hook, width=40)[:2]
-        y_hook = start_y + 10
+        wrapped_hook = textwrap.wrap(hook, width=45)[:2]
+        y_hook = start_y + 20
         for hl in wrapped_hook:
-            draw.text((70, y_hook), hl, font=font_sub, fill=(200, 220, 255))
-            y_hook += 58
+            # Black shadow + stroke for hook
+            draw.text((72, y_hook + 3), hl, font=font_sub, fill=(0, 0, 0))
+            try:
+                draw.text((70, y_hook), hl, font=font_sub, fill=(200, 255, 255), stroke_width=3, stroke_fill=(0,0,0))
+            except TypeError:
+                draw.text((70, y_hook), hl, font=font_sub, fill=(200, 255, 255))
+            y_hook += 55
 
     # Brand border
     draw.rectangle([8, 8, 1272, 712], outline=(0, 200, 100), width=7)
