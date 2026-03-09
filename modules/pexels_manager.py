@@ -24,8 +24,8 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
     headers = {"Authorization": PEXELS_API_KEY}
     params = {
         "query": query,
-        "per_page": 10,
-        "orientation": orientation,
+        "per_page": 15,
+        # Remove orientation restriction because our FFmpeg already center-crops perfectly!
     }
 
     try:
@@ -58,27 +58,17 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
             return ""
 
         # Filter for videos with decent quality and duration
-        # Sort by duration and pick a random one from top 5
         valid_videos = [v for v in videos if v.get("duration", 0) >= min_duration]
         if not valid_videos: valid_videos = videos
         
         chosen_video = random.choice(valid_videos[:5])
-        
-        # Pick the right resolution link
-        # Look for HD (1920x1080) or similar
         video_files = chosen_video.get("video_files", [])
-        best_file = None
         
-        # Sort by quality: we want something around 1080p if possible, or at least 720p
-        target_width = 1920 if orientation == "landscape" else 1080
-        for vf in video_files:
-            if vf.get("width") == target_width:
-                best_file = vf
-                break
-        
-        if not best_file:
-            best_file = video_files[0] # Fallback to first
+        # Sort video files by highest resolution up to 4K to guarantee crisp footage
+        video_files.sort(key=lambda x: (x.get("width", 0) * x.get("height", 0)), reverse=True)
+        best_file = video_files[0] if video_files else None
 
+        if not best_file: return ""
         download_url = best_file.get("link")
         if not download_url: return ""
 
