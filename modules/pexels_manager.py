@@ -30,31 +30,42 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
 
     try:
         resp = requests.get(url, headers=headers, params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
+        log.info(f"Pexels search status for '{query}': {resp.status_code}")
+        if resp.status_code != 200:
+            log.warning(f"Pexels API error {resp.status_code}: {resp.text[:100]}")
+            return ""
 
+        data = resp.json()
         videos = data.get("videos", [])
         
         # Fallback 1: Broaden to first word if multi-word query fails
         if not videos and len(query.split()) > 1:
             fallback_query = query.split()[0]
-            log.info(f"No Pexels videos found for '{query}', falling back to broader term: '{fallback_query}'...")
+            log.info(f"No Pexels videos found for '{query}', trying: '{fallback_query}'...")
             params["query"] = fallback_query
             resp = requests.get(url, headers=headers, params=params, timeout=15)
             data = resp.json()
             videos = data.get("videos", [])
 
-        # Fallback 2: Generic B-Roll
+        # Fallback 2: Technology generic (always works)
+        if not videos and query != "technology":
+            log.info(f"No videos found, falling back to 'technology'...")
+            params["query"] = "technology"
+            resp = requests.get(url, headers=headers, params=params, timeout=15)
+            data = resp.json()
+            videos = data.get("videos", [])
+
+        # Fallback 3: Nature/Abstract
         if not videos:
-            log.info(f"No Pexels videos found for: {query}, falling back to generic tech b-roll...")
-            fallback_query = random.choice(["technology", "abstract network", "artificial intelligence", "data flowing", "cyber security", "futuristic light"])
+            fallback_query = random.choice(["nature bokeh", "abstract light", "cyber city", "blue background"])
+            log.info(f"Complete failure, trying random fallback: {fallback_query}")
             params["query"] = fallback_query
             resp = requests.get(url, headers=headers, params=params, timeout=15)
             data = resp.json()
             videos = data.get("videos", [])
             
         if not videos:
-            log.info("Even fallback failed to find Pexels footage.")
+            log.error("ABSOLUTE FAILURE: Pexels found nothing even with fallbacks.")
             return ""
 
         # Filter for videos with decent quality and duration
@@ -64,9 +75,8 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
         chosen_video = random.choice(valid_videos[:5])
         video_files = chosen_video.get("video_files", [])
         
-        # Sort video files by highest resolution but STRICTLY UNDER 3,000,000 pixels (1080p area is ~2mil)
-        # to prevent FFmpeg decoding OOM and 120s timeouts on GitHub Actions runner.
-        safe_files = [x for x in video_files if ((x.get("width") or 0) * (x.get("height") or 0)) <= 3000000]
+        # INCREASED LIMIT to 10,000,000 (10MP) to allow 4K videos if needed, but still avoid massive files
+        safe_files = [x for x in video_files if ((x.get("width") or 0) * (x.get("height") or 0)) <= 10000000]
         if not safe_files:
             safe_files = video_files # fallback to all if none exist
             

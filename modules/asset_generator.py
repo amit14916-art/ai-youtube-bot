@@ -29,27 +29,36 @@ def generate_ai_image(prompt: str, job_id: str, index: int, width: int = 1920, h
 
         # Try Pollinations.ai (free, no key needed)
         log.info(f"Generating image via Pollinations.ai for: {clean_prompt[:60]}")
-        for seed_offset in range(3):
+        for seed_offset in range(2):
             try:
                 seed = index + seed_offset * 100
+                p_text = clean_prompt if seed_offset == 0 else "AI technology futuristic background"
                 poll_url = (
-                    f"https://image.pollinations.ai/prompt/{requests.utils.quote(full_prompt)}"
-                    f"?width={width}&height={height}&seed={seed}&nologo=true&enhance=true"
+                    f"https://image.pollinations.ai/prompt/{requests.utils.quote(p_text)}"
+                    f"?width={width}&height={height}&seed={seed}&nologo=true"
                 )
-                resp = requests.get(poll_url, timeout=60)
-                resp.raise_for_status()
-                if resp.headers.get("content-type", "").startswith("image/"):
+                resp = requests.get(poll_url, timeout=30)
+                if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
                     with open(save_path, "wb") as f:
                         f.write(resp.content)
-                    log.info(f"Image saved: {save_path}")
                     return save_path
-                else:
-                    log.warning(f"Pollinations.ai returned non-image (attempt {seed_offset+1}). Retrying...")
             except Exception as poll_err:
                 log.warning(f"Pollinations.ai attempt {seed_offset+1} failed: {poll_err}")
 
+        # Final Fallback: Unsplash/Picsum random tech image
+        try:
+            log.info("Try Picsum tech fallback...")
+            picsum_url = f"https://picsum.photos/seed/{index}/{width}/{height}"
+            resp = requests.get(picsum_url, timeout=20)
+            if resp.status_code == 200:
+                with open(save_path, "wb") as f:
+                    f.write(resp.content)
+                return save_path
+        except:
+            pass
+
         # Fallback: solid gradient PIL image
-        log.warning("Pollinations.ai failed. Generating gradient fallback image.")
+        log.warning("All image providers failed. Generating gradient fallback image.")
         from PIL import Image, ImageDraw
         img = Image.new("RGB", (width, height), (10, 15, 30))
         draw = ImageDraw.Draw(img)
