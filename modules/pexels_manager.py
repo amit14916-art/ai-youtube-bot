@@ -66,11 +66,11 @@ def get_stock_video(query: str, orientation: str = "landscape", min_duration: in
         
         # Sort video files by highest resolution but STRICTLY UNDER 3,000,000 pixels (1080p area is ~2mil)
         # to prevent FFmpeg decoding OOM and 120s timeouts on GitHub Actions runner.
-        safe_files = [x for x in video_files if (x.get("width", 0) * x.get("height", 0)) <= 3000000]
+        safe_files = [x for x in video_files if ((x.get("width") or 0) * (x.get("height") or 0)) <= 3000000]
         if not safe_files:
             safe_files = video_files # fallback to all if none exist
             
-        safe_files.sort(key=lambda x: (x.get("width", 0) * x.get("height", 0)), reverse=True)
+        safe_files.sort(key=lambda x: ((x.get("width") or 0) * (x.get("height") or 0)), reverse=True)
         best_file = safe_files[0] if safe_files else None
 
         if not best_file: return ""
