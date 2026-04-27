@@ -1,0 +1,53 @@
+# AI YouTube Automation Bot — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ── Core AI / LLM ─────────────────────────────────────────────
+google-genai>=1.0.0               # Gemini FREE tier (primary LLM - no expiry issues)
+anthropic>=0.25.0                  # Claude AI (optional fallback)
+groq>=0.9.0                       # Groq (optional fallback)
+openai>=1.0.0                     # OpenAI (optional fallback - already in TTS section)
+
+# ── Research / Trends ─────────────────────────────────────────
+pytrends>=4.9.2                    # Google Trends API
+requests>=2.31.0                   # HTTP client
+
+# ── Text-to-Speech ────────────────────────────────────────────
+gTTS>=2.5.1                        # Free Google TTS (fallback)
+pydub>=0.25.1                      # Audio processing / stitching
+mutagen>=1.47.0                    # MP3 metadata / duration reading
+elevenlabs>=1.0.0                  # Premium TTS
+edge-tts>=6.1.0                    # Free high-quality Microsoft voices
+openai>=1.0.0                      # OpenAI TTS support
+
+# ── Video Creation ────────────────────────────────────────────
+moviepy>=1.0.3                     # Video editing / composition
+proglog>=0.1.10                    # Progress logging for MoviePy
+imageio-ffmpeg>=0.4.9              # FFmpeg bindings
+Pillow>=10.0.0                     # Image processing
+numpy>=1.24.0                      # Array processing
+matplotlib>=3.7.0                  # For color processing (optional but helpful)
+
+# ── YouTube API ───────────────────────────────────────────────
+google-api-python-client>=2.100.0  # YouTube Data API v3
+google-auth>=2.23.0                # Google OAuth
+google-auth-oauthlib>=1.1.0        # OAuth flow
+google-auth-httplib2>=0.1.1        # HTTP transport
+
+# ── Scheduling ────────────────────────────────────────────────
+schedule>=1.2.1                    # Daily job scheduler
+
+# ── Web Framework / SaaS ──────────────────────────────────────
+fastapi>=0.100.0                  # API framework
+uvicorn>=0.22.0                    # ASGI server
+sqlalchemy>=2.0.0                  # Database ORM
+python-jose[cryptography]>=3.3.0   # JWT tokens
+passlib[bcrypt]>=1.7.4             # Password hashing
+stripe>=5.0.0                      # Payments
+python-multipart>=0.0.6            # Form data support
+
+# ── LangChain ─────────────────────────────────────────────────
+langchain-core>=0.1.0              # Langchain core
+langchain>=0.1.0                   # Langchain framework
+
+# ── Utilities ─────────────────────────────────────────────────
+json-repair>=0.30.0                # Robust JSON parsing (fixes malformed LLM output)
