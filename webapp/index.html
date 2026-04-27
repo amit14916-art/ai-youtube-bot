@@ -76,27 +76,27 @@
 
 <body class="flex min-h-screen">
 
-    <!-- Sidebar -->
-    <aside class="w-64 glass border-r border-slate-800 flex flex-col fixed h-full z-50">
-        <div class="p-8">
-            <h1 class="text-2xl font-extrabold gold-gradient tracking-tighter">AGENTIC AI</h1>
-            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Automation Studio</p>
-        </div>
+        <!-- Sidebar -->
+        <aside class="w-72 bg-slate-900/50 backdrop-blur-xl border-r border-white/5 flex flex-col p-6">
+            <div class="mb-10 px-4">
+                <h1 class="text-2xl font-black gold-gradient tracking-tighter">AGENTIC AI</h1>
+                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Automation Studio</p>
+            </div>
 
-        <nav class="flex-1 px-4 space-y-2">
-            <a href="#" class="sidebar-item active-nav flex items-center gap-3 p-3 rounded-xl font-medium">
-                <i class="ph ph-squares-four text-xl"></i> Dashboard
-            </a>
-            <a href="#" class="sidebar-item flex items-center gap-3 p-3 rounded-xl font-medium text-slate-400">
-                <i class="ph ph-video-camera text-xl"></i> My Videos
-            </a>
-            <a href="#" class="sidebar-item flex items-center gap-3 p-3 rounded-xl font-medium text-slate-400">
-                <i class="ph ph-chart-line-up text-xl"></i> Analytics
-            </a>
-            <a href="#" class="sidebar-item flex items-center gap-3 p-3 rounded-xl font-medium text-slate-400">
-                <i class="ph ph-credit-card text-xl"></i> Billing
-            </a>
-        </nav>
+            <nav class="flex-1 space-y-2">
+                <button onclick="showTab('dashboard')" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-500/10 text-amber-500 font-bold transition">
+                    <i class="ph ph-squares-four text-xl"></i> Dashboard
+                </button>
+                <button onclick="showTab('videos')" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:bg-white/5 transition">
+                    <i class="ph ph-video-camera text-xl"></i> My Videos
+                </button>
+                <button onclick="showTab('analytics')" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:bg-white/5 transition">
+                    <i class="ph ph-chart-line-up text-xl"></i> Analytics
+                </button>
+                <button onclick="showTab('billing')" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:bg-white/5 transition">
+                    <i class="ph ph-credit-card text-xl"></i> Billing
+                </button>
+            </nav>
 
         <div class="p-4 mt-auto">
             <div class="glass p-4 rounded-2xl border-amber-500/20 bg-amber-500/5">
@@ -205,6 +205,15 @@
     </div>
 
     <script>
+        function showTab(tabId) {
+            // Simple alert for now as we build the sub-pages
+            if (tabId === 'dashboard') {
+                document.getElementById('main-content').classList.remove('hidden');
+                return;
+            }
+            alert(tabId.toUpperCase() + " section is coming in the next update! Focus on Dashboard for now.");
+        }
+        
         const API_BASE = window.location.origin;
         let token = localStorage.getItem('token');
 
@@ -322,22 +331,48 @@
             } catch (err) { alert("Update failed"); }
         }
 
+        function renderJobs(jobs) {
+            const container = document.getElementById('recent-jobs');
+            if (jobs.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-center py-10">No videos generated yet. Click the button above to start!</p>';
+                return;
+            }
+
+            container.innerHTML = jobs.reverse().map(job => `
+                <div class="flex items-center justify-between p-4 glass rounded-2xl hover:bg-white/5 transition group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-10 bg-slate-800 rounded-lg flex items-center justify-center overflow-hidden">
+                             <i class="ph ph-video-camera text-xl text-slate-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-200 capitalize">${job.topic || 'Untitled Video'}</h4>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">${new Date(job.created_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getStatusClass(job.status)}">
+                            ${job.status}
+                        </span>
+                        ${job.status === 'completed' ? `<a href="${job.youtube_url}" target="_blank" class="p-2 bg-amber-500/10 text-amber-500 rounded-lg opacity-0 group-hover:opacity-100 transition"><i class="ph ph-arrow-square-out font-bold"></i></a>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusClass(status) {
+            switch(status) {
+                case 'completed': return 'bg-green-500/10 text-green-500';
+                case 'failed': return 'bg-red-500/10 text-red-500';
+                default: return 'bg-amber-500/10 text-amber-500 animate-pulse';
+            }
+        }
+
         async function fetchJobs() {
             try {
                 const resp = await fetch(`${API_BASE}/jobs`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const jobs = await resp.json();
-                const container = document.getElementById('jobs-container');
-
-                if (jobs.length === 0) {
-                    container.innerHTML = `<p class="text-slate-500 text-center py-10">No videos generated yet. Click the button above to start!</p>`;
-                    return;
-                }
-
-                container.innerHTML = jobs.map(job => `
-                    <div class="flex items-center gap-6 p-4 rounded-3xl hover:bg-white/5 transition border border-transparent hover:border-white/10 group">
-                        <div class="w-32 h-20 rounded-2xl bg-slate-800 overflow-hidden relative border border-white/5">
                             <div class="absolute inset-0 flex items-center justify-center">
                                 <i class="ph ph-video-camera text-2xl text-slate-600"></i>
                             </div>

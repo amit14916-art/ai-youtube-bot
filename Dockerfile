@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsm6 \
     libxext6 \
+    build-essential \
     fonts-noto-cjk \
     fonts-liberation \
     imagemagick \
