@@ -15,9 +15,10 @@ from passlib.context import CryptContext
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import requests
 from webapp import models
 from main import run_pipeline
-from config.settings import OUTPUT_DIR
+from config.settings import OUTPUT_DIR, YOUTUBE_API_KEY
 
 # ─── Auth Constants ───
 SECRET_KEY = "SUPER_SECRET_KEY_CHANGE_ME"
@@ -179,13 +180,37 @@ def get_stats(current_user: models.User = Depends(get_current_user)):
     # Calculate real uploads from database
     total_uploads = len([j for j in current_user.jobs if j.status == "completed"])
     
-    # These will be fetched from YouTube API if channel_id exists
-    # For now, we return 0 or placeholders if no channel linked
+    views = "0"
+    subs = "0"
+    
+    # Fetch REAL data from YouTube API if channel_id exists
+    if current_user.youtube_channel_id:
+        try:
+            url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={current_user.youtube_channel_id}&key={YOUTUBE_API_KEY}"
+            resp = requests.get(url, timeout=5)
+            data = resp.json()
+            if "items" in data and len(data["items"]) > 0:
+                stats = data["items"][0]["statistics"]
+                views = stats.get("viewCount", "0")
+                subs = stats.get("subscriberCount", "0")
+                
+                # Format numbers (e.g. 1200 -> 1.2K)
+                def format_num(num):
+                    n = int(num)
+                    if n >= 1000000: return f"{n/1000000:.1f}M"
+                    if n >= 1000: return f"{n/1000:.1f}K"
+                    return str(n)
+                
+                views = format_num(views)
+                subs = format_num(subs)
+        except Exception as e:
+            print(f"YouTube Stats Error: {e}")
+
     return {
         "total_uploads": total_uploads,
-        "total_views": "0",
-        "followers": "0",
-        "next_upload": "Calculating...",
+        "total_views": views,
+        "followers": subs,
+        "next_upload": "Scheduled Daily",
         "has_channel": bool(current_user.youtube_channel_id)
     }
 
