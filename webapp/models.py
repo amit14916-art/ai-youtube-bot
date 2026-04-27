@@ -11,7 +11,7 @@ class User(Base):
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
     is_premium = Column(Boolean, default=False)
-    credits = Column(Integer, default=5) # Free users get 5 credits
+    credits = Column(Integer, default=10) # Free users get 10 credits
     
     jobs = relationship("Job", back_populates="owner")
 
