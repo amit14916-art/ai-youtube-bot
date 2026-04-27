@@ -127,7 +127,7 @@
                 <p class="text-slate-500">Your AI bot is working hard for you today.</p>
             </div>
             <div class="flex gap-4">
-                <button class="px-6 py-3 glass rounded-2xl font-bold hover:bg-slate-800 transition">
+                <button class="px-6 py-3 glass rounded-2xl font-bold hover:bg-slate-800 transition" onclick="updateChannel()">
                     <i class="ph ph-gear-six"></i> Config
                 </button>
                 <button class="px-6 py-3 btn-gold text-black rounded-2xl font-extrabold flex items-center gap-2"
@@ -142,22 +142,22 @@
             <div class="glass p-6 rounded-3xl">
                 <i class="ph ph-youtube-logo text-3xl text-red-500 mb-4"></i>
                 <p class="text-slate-400 text-sm">Total Uploads</p>
-                <h3 class="text-3xl font-bold">142</h3>
+                <h3 class="text-3xl font-bold" id="stat-uploads">0</h3>
             </div>
             <div class="glass p-6 rounded-3xl">
                 <i class="ph ph-eye text-3xl text-blue-400 mb-4"></i>
                 <p class="text-slate-400 text-sm">Total Views</p>
-                <h3 class="text-3xl font-bold">1.2M</h3>
+                <h3 class="text-3xl font-bold" id="stat-views">0</h3>
             </div>
             <div class="glass p-6 rounded-3xl">
                 <i class="ph ph-users text-3xl text-green-400 mb-4"></i>
                 <p class="text-slate-400 text-sm">Followers Gained</p>
-                <h3 class="text-3xl font-bold">+12,400</h3>
+                <h3 class="text-3xl font-bold" id="stat-followers">0</h3>
             </div>
             <div class="glass p-6 rounded-3xl">
                 <i class="ph ph-clock text-3xl text-amber-500 mb-4"></i>
                 <p class="text-slate-400 text-sm">Next Upload</p>
-                <h3 class="text-3xl font-bold">2h 14m</h3>
+                <h3 class="text-3xl font-bold text-sm" id="stat-next">Calculating...</h3>
             </div>
         </section>
 
@@ -287,7 +287,39 @@
                 document.getElementById('user-email').innerText = user.email;
                 document.getElementById('user-initial').innerText = user.email[0].toUpperCase();
                 document.getElementById('user-plan').innerText = user.is_premium ? "Pro Plan" : "Free Plan";
+                
+                // Fetch extra stats
+                fetchStats();
             } catch (err) { console.error(err); }
+        }
+
+        async function fetchStats() {
+            try {
+                const resp = await fetch(`${API_BASE}/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const stats = await resp.json();
+                
+                document.getElementById('stat-uploads').innerText = stats.total_uploads;
+                document.getElementById('stat-views').innerText = stats.total_views;
+                document.getElementById('stat-followers').innerText = stats.followers;
+                document.getElementById('stat-next').innerText = stats.next_upload;
+            } catch (err) { console.error(err); }
+        }
+
+        async function updateChannel() {
+            const channelId = prompt("Enter your YouTube Channel ID (e.g. UC...):");
+            if (!channelId) return;
+            
+            try {
+                const resp = await fetch(`${API_BASE}/user/update-channel?channel_id=${channelId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await resp.json();
+                alert(data.status);
+                fetchStats();
+            } catch (err) { alert("Update failed"); }
         }
 
         async function fetchJobs() {

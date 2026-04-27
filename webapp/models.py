@@ -12,6 +12,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_premium = Column(Boolean, default=False)
     credits = Column(Integer, default=10) # Free users get 10 credits
+    youtube_channel_id = Column(String, nullable=True) # To fetch real views/subs
     
     jobs = relationship("Job", back_populates="owner")
 

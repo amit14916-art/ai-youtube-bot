@@ -174,6 +174,27 @@ def create_job(background_tasks: BackgroundTasks, topic: str = None, current_use
 def list_jobs(current_user: models.User = Depends(get_current_user)):
     return current_user.jobs
 
+@app.get("/stats")
+def get_stats(current_user: models.User = Depends(get_current_user)):
+    # Calculate real uploads from database
+    total_uploads = len([j for j in current_user.jobs if j.status == "completed"])
+    
+    # These will be fetched from YouTube API if channel_id exists
+    # For now, we return 0 or placeholders if no channel linked
+    return {
+        "total_uploads": total_uploads,
+        "total_views": "0",
+        "followers": "0",
+        "next_upload": "Calculating...",
+        "has_channel": bool(current_user.youtube_channel_id)
+    }
+
+@app.post("/user/update-channel")
+def update_channel(channel_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    current_user.youtube_channel_id = channel_id
+    db.commit()
+    return {"status": "Channel ID updated"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
