@@ -171,14 +171,15 @@ def tts_gtts(text: str, output_path: str) -> bool:
         ]
         subprocess.run(cmd, check=True, capture_output=True)
         
-        if os.path.exists(tmp):
-            os.remove(tmp)
-
         log.info(f"gTTS audio saved -> {output_path}")
         return True
     except Exception as e:
         log.error(f"gTTS failed: {e}")
         return False
+    finally:
+        tmp = output_path.replace(".mp3", "_raw.mp3")
+        if os.path.exists(tmp):
+            os.remove(tmp)
 
 
 # -----------------------------------------------------------------
@@ -306,8 +307,10 @@ def generate_audio(script: str, job_id: str) -> str:
     chunk_files = []
     for i, ct in enumerate(text_chunks):
         cp = output_path.replace(".mp3", f"_chunk{i}.mp3")
-        tts_gtts(ct, cp)
-        chunk_files.append(cp)
+        if tts_gtts(ct, cp):
+            chunk_files.append(cp)
+        else:
+            log.warning(f"Skipping failed gTTS chunk {i}")
 
     _stitch_mp3(chunk_files, output_path)
     return output_path
@@ -315,6 +318,10 @@ def generate_audio(script: str, job_id: str) -> str:
 
 def _stitch_mp3(files: list[str], output: str):
     """Concatenate MP3 chunk files into one using ffmpeg."""
+    files = [f for f in files if os.path.exists(f)]
+    if not files:
+        raise RuntimeError("No audio chunks were generated; cannot create voiceover.")
+    list_path = None
     try:
         # Create a temp file for ffmpeg concat filter
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
@@ -331,10 +338,14 @@ def _stitch_mp3(files: list[str], output: str):
         subprocess.run(cmd, check=True, capture_output=True)
         
         # Cleanup
-        os.remove(list_path)
+        if list_path and os.path.exists(list_path):
+            os.remove(list_path)
         for f in files:
             if os.path.exists(f):
-                os.remove(f)
+                if os.path.exists(f):
+                    os.remove(f)
+        if list_path and os.path.exists(list_path):
+            os.remove(list_path)
                 
         log.info(f"Stitched {len(files)} audio chunks -> {output}")
     except Exception as e:

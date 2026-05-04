@@ -11,6 +11,7 @@ import subprocess
 import textwrap
 import random
 import tempfile
+import hashlib
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -26,6 +27,14 @@ from config.settings import (
 
 log = logging.getLogger(__name__)
 
+try:
+    import imageio_ffmpeg
+    detected_ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    if detected_ffmpeg and os.path.exists(detected_ffmpeg):
+        FFMPEG_PATH = detected_ffmpeg
+except Exception:
+    pass
+
 
 # -----------------------------------------------------------------
 #  SLIDE IMAGE RENDERER (PIL only, no MoviePy)
@@ -33,7 +42,7 @@ log = logging.getLogger(__name__)
 
 def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
                        is_title: bool = False, bg_image_path: str = "",
-                       show_branding: bool = True) -> str:
+                       show_branding: bool = True, avatar_path: str = "") -> str:
     """Render a single slide as a JPEG image using PIL."""
     if bg_image_path and os.path.exists(bg_image_path):
         try:
@@ -50,11 +59,15 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
         alpha = int(170 * (y / h))
         draw_ov.line([(0, y), (w, y)], fill=(0, 0, 0, alpha))
     img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    if avatar_path:
+        img = _paste_presenter_avatar(img, avatar_path, w, h)
 
     draw = ImageDraw.Draw(img)
 
     # Font
     font_size = 90 if is_title else 68
+    if avatar_path and h <= w and not is_title:
+        font_size = 58
     small_size = 36
     try:
         font = ImageFont.truetype(FONT_PATH, font_size)
@@ -66,6 +79,8 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
     # Clean text
     clean = text.replace("Host A:", "").replace("Host B:", "").strip()
     wrap_w = 24 if is_title else 32
+    if avatar_path and h <= w and not is_title:
+        wrap_w = 24
     wrapped = textwrap.wrap(clean, width=wrap_w)[:5]
 
     total_h = len(wrapped) * (font_size + 15)
@@ -74,7 +89,12 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
     for line in wrapped:
         bbox = draw.textbbox((0, 0), line, font=font)
         lw = bbox[2] - bbox[0]
-        x = (w - lw) // 2
+        if avatar_path and h <= w and not is_title:
+            text_left = 45
+            text_right = w - int(w * 0.30)
+            x = text_left + max(0, (text_right - text_left - lw) // 2)
+        else:
+            x = (w - lw) // 2
         # Shadow
         draw.text((x + 3, y_pos + 3), line, font=font, fill=(0, 0, 0, 200))
         draw.text((x + 6, y_pos + 6), line, font=font, fill=(0, 0, 0, 100))
@@ -93,7 +113,7 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
         img_rgba.paste(bar_rect, (0, h - bar_h), bar_rect)
         img = img_rgba.convert("RGB")
         draw = ImageDraw.Draw(img)
-        draw.text((20, h - bar_h + 10), "🤖  AI NEWS DAILY", font=small_font, fill=(200, 200, 200))
+        draw.text((20, h - bar_h + 10), "AI NEWS DAILY", font=small_font, fill=(200, 200, 200))
 
     # Save
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -145,11 +165,35 @@ def get_pexels_clip_for_scene(keyword: str, job_id: str, index: int, is_shorts: 
             orientation=orient,
             min_duration=4,
             scene_index=index,
+            job_id=job_id,
         )
         return clip_path or ""
     except Exception as e:
         log.warning(f"Pexels clip fetch failed for '{keyword}': {e}")
         return ""
+
+
+def _ffmpeg_text_x(width: int, has_avatar: bool, is_title: bool) -> str:
+    """Return drawtext x expression, reserving space for presenter in landscape."""
+    if has_avatar and not is_title:
+        left = int(width * 0.035)
+        area_w = int(width * 0.65)
+        return f"{left}+({area_w}-text_w)/2"
+    return "(w-text_w)/2"
+
+
+def _talking_avatar_filter(input_label: str, output_label: str, avatar_w: int) -> str:
+    """FFmpeg filter that makes the presenter card visibly 'talk' with mouth motion."""
+    mouth_h = "if(lt(mod(t\\,0.36)\\,0.18)\\,ih*0.040\\,ih*0.014)"
+    return (
+        f"{input_label}scale={avatar_w}:-1,format=rgba,"
+        f"drawbox=x=iw*0.41:y=ih*0.585:w=iw*0.18:h='{mouth_h}':color=black@0.72:t=fill,"
+        f"drawbox=x=iw*0.435:y=ih*0.605:w=iw*0.11:h='ih*0.006':color=white@0.55:t=fill,"
+        f"drawbox=x=iw*0.08:y=ih*0.91:w='if(lt(mod(t\\,0.50)\\,0.25)\\,iw*0.18\\,iw*0.08)':h=ih*0.012:color=white@0.72:t=fill,"
+        f"drawbox=x=iw*0.30:y=ih*0.91:w='if(lt(mod(t\\,0.42)\\,0.21)\\,iw*0.22\\,iw*0.10)':h=ih*0.012:color=white@0.72:t=fill,"
+        f"drawbox=x=iw*0.56:y=ih*0.91:w='if(lt(mod(t\\,0.58)\\,0.29)\\,iw*0.20\\,iw*0.07)':h=ih*0.012:color=white@0.72:t=fill"
+        f"{output_label}"
+    )
 
 
 # -----------------------------------------------------------------
@@ -164,7 +208,8 @@ def create_text_overlay_clip(
     w: int,
     h: int,
     is_title: bool = False,
-    ffmpeg_path: str = None
+    ffmpeg_path: str = None,
+    avatar_path: str = ""
 ) -> bool:
     """
     Use FFmpeg to trim a video clip to 'duration' seconds and overlay text.
@@ -177,12 +222,17 @@ def create_text_overlay_clip(
     clean_text = clean_text.replace("\\", "/").replace("'", "").replace("%", "%%")
     clean_text = clean_text.replace(":", "\\:").replace(",", "\\,")
 
-    # Wrap text at ~38 chars for overlay
-    wrapped = textwrap.wrap(clean_text, width=38)[:4]
+    has_avatar = bool(avatar_path and os.path.exists(avatar_path))
+
+    # Wrap text; leave room for the presenter face-cam on landscape videos.
+    wrap_chars = 26 if has_avatar and h <= w and not is_title else 38
+    wrapped = textwrap.wrap(clean_text, width=wrap_chars)[:4]
     joined = "\\n".join(wrapped)
 
     # Font settings
     font_size = 72 if is_title else 56
+    if has_avatar and h <= w and not is_title:
+        font_size = 50
     text_color = "yellow" if is_title else "white"
 
     # Try to find a font that exists
@@ -205,12 +255,12 @@ def create_text_overlay_clip(
     shadow = (
         f"drawtext=text='{joined}'{font_arg}"
         f":fontsize={font_size}:fontcolor=black@0.8"
-        f":x=(w-text_w)/2+3:y={text_y}+3:line_spacing=8"
+        f":x={_ffmpeg_text_x(w, has_avatar, is_title)}+3:y={text_y}+3:line_spacing=8"
     )
     main_text = (
         f"drawtext=text='{joined}'{font_arg}"
         f":fontsize={font_size}:fontcolor={text_color}@0.95"
-        f":x=(w-text_w)/2:y={text_y}:line_spacing=8"
+        f":x={_ffmpeg_text_x(w, has_avatar, is_title)}:y={text_y}:line_spacing=8"
     )
     branding = (
         f"drawtext=text='AI NEWS DAILY'{font_arg}"
@@ -225,20 +275,45 @@ def create_text_overlay_clip(
     )
     # Crop perfectly instead of squashing
     scale_crop = f"scale='max({w},a*{h})':'max({h},{w}/a)',crop={w}:{h}"
-    full_filter = f"{scale_crop},setsar=1,{shadow},{main_text},{branding},{subscribe_cta}"
+    text_filter = f"{scale_crop},setsar=1,{shadow},{main_text},{branding},{subscribe_cta}"
 
-    cmd = [
-        ffmpeg, "-y",
-        "-ss", "0",
-        "-i", video_clip_path,
-        "-t", str(max(duration, 1.0)),
-        "-vf", full_filter,
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
-        "-an",  # No audio (we'll mix later)
-        "-r", str(VIDEO_FPS),
-        "-pix_fmt", "yuv420p",
-        output_path
-    ]
+    if has_avatar:
+        avatar_w = 300 if h <= w else 330
+        avatar_x = f"main_w-overlay_w-{int(w * 0.035)}"
+        avatar_y = str(int(h * 0.12)) if h > w else f"main_h-overlay_h-{int(h * 0.12)}"
+        full_filter = (
+            f"[0:v]{text_filter}[base];"
+            f"{_talking_avatar_filter('[1:v]', '[avatar]', avatar_w)};"
+            f"[base][avatar]overlay=x={avatar_x}:y={avatar_y}:format=auto"
+        )
+        cmd = [
+            ffmpeg, "-y",
+            "-ss", "0",
+            "-i", video_clip_path,
+            "-loop", "1",
+            "-t", str(max(duration, 1.0)),
+            "-i", avatar_path,
+            "-t", str(max(duration, 1.0)),
+            "-filter_complex", full_filter,
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
+            "-an",
+            "-r", str(VIDEO_FPS),
+            "-pix_fmt", "yuv420p",
+            output_path
+        ]
+    else:
+        cmd = [
+            ffmpeg, "-y",
+            "-ss", "0",
+            "-i", video_clip_path,
+            "-t", str(max(duration, 1.0)),
+            "-vf", text_filter,
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
+            "-an",  # No audio (we'll mix later)
+            "-r", str(VIDEO_FPS),
+            "-pix_fmt", "yuv420p",
+            output_path
+        ]
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
@@ -252,20 +327,46 @@ def create_text_overlay_clip(
 # -----------------------------------------------------------------
 
 def image_to_video_clip(image_path: str, duration: float, output_path: str,
-                        w: int, h: int) -> bool:
+                        w: int, h: int, avatar_path: str = "") -> bool:
     """Convert a PIL image into a short video clip using FFmpeg."""
     # Added slow zoom (Ken Burns) effect for a premium cinematic feel
-    cmd = [
-        FFMPEG_PATH, "-y",
-        "-loop", "1",
-        "-i", image_path,
-        "-t", str(max(duration, 1.0)),
-        "-vf", f"scale=8000:-1,zoompan=z='min(zoom+0.001,1.1)':d={int(duration*VIDEO_FPS)}:s={w}x{h}:fps={VIDEO_FPS},setsar=1",
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-        "-pix_fmt", "yuv420p",
-        "-an",
-        output_path
-    ]
+    base_filter = f"scale=8000:-1,zoompan=z='min(zoom+0.001,1.1)':d={int(duration*VIDEO_FPS)}:s={w}x{h}:fps={VIDEO_FPS},setsar=1"
+    has_avatar = bool(avatar_path and os.path.exists(avatar_path))
+    if has_avatar:
+        avatar_w = 300 if h <= w else 330
+        avatar_x = f"main_w-overlay_w-{int(w * 0.035)}"
+        avatar_y = str(int(h * 0.12)) if h > w else f"main_h-overlay_h-{int(h * 0.12)}"
+        full_filter = (
+            f"[0:v]{base_filter}[base];"
+            f"{_talking_avatar_filter('[1:v]', '[avatar]', avatar_w)};"
+            f"[base][avatar]overlay=x={avatar_x}:y={avatar_y}:format=auto"
+        )
+        cmd = [
+            FFMPEG_PATH, "-y",
+            "-loop", "1",
+            "-i", image_path,
+            "-loop", "1",
+            "-t", str(max(duration, 1.0)),
+            "-i", avatar_path,
+            "-t", str(max(duration, 1.0)),
+            "-filter_complex", full_filter,
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-pix_fmt", "yuv420p",
+            "-an",
+            output_path
+        ]
+    else:
+        cmd = [
+            FFMPEG_PATH, "-y",
+            "-loop", "1",
+            "-i", image_path,
+            "-t", str(max(duration, 1.0)),
+            "-vf", base_filter,
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-pix_fmt", "yuv420p",
+            "-an",
+            output_path
+        ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if result.returncode != 0:
         log.warning(f"image_to_video_clip failed: {result.stderr[-400:]}")
@@ -295,6 +396,166 @@ THEMED_PALETTES = [
     {"bg": (5,  50, 30), "name": "emerald"},          # emerald
     {"bg": (50, 10, 35), "name": "dark_rose"},        # dark rose/magenta
 ]
+
+
+def _draw_tech_background(width: int, height: int, seed: int, accent: tuple) -> Image.Image:
+    """Create a detailed tech-style fallback background instead of a plain gradient."""
+    rng = random.Random(seed)
+    palettes = [
+        ((4, 10, 24), (16, 44, 70)),
+        ((22, 2, 18), (70, 10, 48)),
+        ((3, 24, 18), (12, 68, 48)),
+        ((28, 18, 2), (78, 48, 8)),
+        ((10, 6, 32), (42, 18, 86)),
+    ]
+    c0, c1 = palettes[seed % len(palettes)]
+    img = Image.new("RGB", (width, height), c0)
+    draw = ImageDraw.Draw(img, "RGBA")
+
+    for y in range(height):
+        ratio = y / max(1, height - 1)
+        r = int(c0[0] * (1 - ratio) + c1[0] * ratio)
+        g = int(c0[1] * (1 - ratio) + c1[1] * ratio)
+        b = int(c0[2] * (1 - ratio) + c1[2] * ratio)
+        draw.line([(0, y), (width, y)], fill=(r, g, b, 255))
+
+    grid_color = (*accent, 34)
+    for x in range(-80, width + 80, 80):
+        draw.line([(x, 0), (x + 260, height)], fill=grid_color, width=1)
+    for y in range(40, height, 70):
+        draw.line([(0, y), (width, y + rng.randint(-40, 40))], fill=grid_color, width=1)
+
+    # Large foreground tech object: chip/server block, positioned away from common text zones.
+    object_side = "right" if seed % 2 == 0 else "left"
+    cx = 950 if object_side == "right" else 300
+    cy = 310 + rng.randint(-40, 60)
+    chip_w, chip_h = 360, 250
+    chip_box = [cx - chip_w // 2, cy - chip_h // 2, cx + chip_w // 2, cy + chip_h // 2]
+    draw.rounded_rectangle(chip_box, radius=34, fill=(8, 18, 28, 220), outline=(*accent, 210), width=5)
+    draw.rounded_rectangle(
+        [chip_box[0] + 22, chip_box[1] + 22, chip_box[2] - 22, chip_box[3] - 22],
+        radius=22,
+        fill=(18, 36, 50, 230),
+        outline=(255, 255, 255, 55),
+        width=2,
+    )
+    for i in range(7):
+        px = chip_box[0] + 44 + i * 44
+        draw.line([(px, chip_box[1] - 45), (px, chip_box[1])], fill=(*accent, 170), width=4)
+        draw.line([(px, chip_box[3]), (px, chip_box[3] + 45)], fill=(*accent, 170), width=4)
+    for i in range(5):
+        py = chip_box[1] + 42 + i * 40
+        draw.line([(chip_box[0] - 55, py), (chip_box[0], py)], fill=(*accent, 160), width=4)
+        draw.line([(chip_box[2], py), (chip_box[2] + 55, py)], fill=(*accent, 160), width=4)
+
+    # Floating UI/data cards add visible context in empty areas.
+    for i in range(6):
+        card_w = rng.randint(130, 230)
+        card_h = rng.randint(48, 86)
+        x = rng.randint(40, width - card_w - 40)
+        y = rng.randint(40, height - card_h - 80)
+        if abs(x + card_w / 2 - cx) < 260 and abs(y + card_h / 2 - cy) < 190:
+            continue
+        draw.rounded_rectangle([x, y, x + card_w, y + card_h], radius=14, fill=(0, 0, 0, 82), outline=(*accent, 72), width=2)
+        for j in range(3):
+            line_w = rng.randint(45, card_w - 28)
+            draw.rounded_rectangle([x + 14, y + 14 + j * 18, x + 14 + line_w, y + 20 + j * 18], radius=3, fill=(*accent, 135))
+
+    for _ in range(36):
+        x = rng.randint(20, width - 20)
+        y = rng.randint(20, height - 20)
+        r = rng.randint(2, 5)
+        draw.ellipse([x - r, y - r, x + r, y + r], fill=(*accent, rng.randint(70, 180)))
+
+    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    glow_draw = ImageDraw.Draw(glow)
+    for radius, alpha in [(360, 32), (250, 42), (140, 60)]:
+        glow_draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=(*accent, alpha))
+    img = Image.alpha_composite(img.convert("RGBA"), glow).convert("RGB")
+    return img
+
+
+def _paste_presenter_avatar(img: Image.Image, avatar_path: str, w: int, h: int) -> Image.Image:
+    """Paste the synthetic presenter as a face-cam overlay."""
+    if not avatar_path or not os.path.exists(avatar_path):
+        return img
+    try:
+        avatar = Image.open(avatar_path).convert("RGBA")
+        target_w = int(w * (0.28 if h > w else 0.23))
+        target_h = int(target_w * avatar.height / max(1, avatar.width))
+        avatar = avatar.resize((target_w, target_h), Image.LANCZOS)
+        margin = int(w * 0.035)
+        x = w - target_w - margin
+        y = int(h * 0.13) if h > w else h - target_h - int(h * 0.12)
+        base = img.convert("RGBA")
+        base.alpha_composite(avatar, (x, y))
+        return base.convert("RGB")
+    except Exception as e:
+        log.warning(f"Presenter avatar paste failed: {e}")
+        return img
+
+
+def create_presenter_avatar(job_id: str, topic: str = "", is_shorts: bool = False) -> str:
+    """Create a synthetic AI presenter face-cam image for video overlays."""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    avatar_path = os.path.join(OUTPUT_DIR, f"{job_id}_presenter.png")
+    if os.path.exists(avatar_path):
+        return avatar_path
+
+    seed = int(hashlib.sha256(f"{job_id}:{topic}:presenter".encode("utf-8")).hexdigest()[:8], 16)
+    portrait = None
+    try:
+        import requests
+        prompt = (
+            "synthetic AI news presenter, professional human face, shoulders visible, "
+            "looking at camera, studio lighting, dark tech newsroom background, "
+            "realistic but not a real person, high detail"
+        )
+        url = (
+            f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}"
+            f"?width=640&height=900&seed={seed}&nologo=true"
+        )
+        resp = requests.get(url, timeout=25)
+        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+            from io import BytesIO
+            portrait = Image.open(BytesIO(resp.content)).convert("RGB")
+    except Exception as e:
+        log.warning(f"Presenter image generation failed, using local avatar: {e}")
+
+    card_w, card_h = (330, 470) if not is_shorts else (360, 520)
+    card = Image.new("RGBA", (card_w, card_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(card, "RGBA")
+    accent = [(0, 220, 160), (255, 80, 60), (0, 190, 255), (255, 210, 0)][seed % 4]
+    draw.rounded_rectangle([0, 0, card_w - 1, card_h - 1], radius=34, fill=(4, 9, 14, 215), outline=(*accent, 230), width=5)
+
+    inner = [14, 14, card_w - 14, card_h - 70]
+    mask = Image.new("L", (inner[2] - inner[0], inner[3] - inner[1]), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, mask.width - 1, mask.height - 1], radius=26, fill=255)
+    if portrait:
+        portrait = portrait.resize((mask.width, mask.height), Image.LANCZOS).convert("RGBA")
+        card.paste(portrait, (inner[0], inner[1]), mask)
+    else:
+        # Local fallback: stylized host face, not a real identity.
+        face = Image.new("RGBA", (mask.width, mask.height), (14, 24, 36, 255))
+        fd = ImageDraw.Draw(face, "RGBA")
+        cx, cy = mask.width // 2, int(mask.height * 0.42)
+        fd.ellipse([cx - 92, cy - 118, cx + 92, cy + 118], fill=(214, 174, 140, 255), outline=(*accent, 150), width=4)
+        fd.arc([cx - 88, cy - 126, cx + 88, cy + 58], 200, 340, fill=(28, 22, 20, 255), width=28)
+        fd.ellipse([cx - 50, cy - 22, cx - 26, cy + 2], fill=(20, 28, 34, 255))
+        fd.ellipse([cx + 26, cy - 22, cx + 50, cy + 2], fill=(20, 28, 34, 255))
+        fd.rounded_rectangle([cx - 34, cy + 62, cx + 34, cy + 78], radius=8, fill=(92, 24, 32, 255))
+        fd.polygon([(cx - 130, mask.height), (cx + 130, mask.height), (cx + 76, cy + 116), (cx - 76, cy + 116)], fill=(10, 18, 28, 255))
+        fd.line([(cx - 56, cy + 126), (cx, mask.height - 18), (cx + 56, cy + 126)], fill=(*accent, 220), width=5)
+        card.paste(face, (inner[0], inner[1]), mask)
+
+    try:
+        font = ImageFont.truetype(FONT_PATH, 30)
+    except Exception:
+        font = ImageFont.load_default()
+    draw.rounded_rectangle([24, card_h - 54, card_w - 24, card_h - 14], radius=20, fill=(*accent, 220))
+    draw.text((card_w // 2, card_h - 48), "AI HOST", font=font, fill=(255, 255, 255), anchor="ma")
+    card.save(avatar_path)
+    return avatar_path
 
 
 def create_video(content: dict, audio_path: str, job_id: str,
@@ -350,7 +611,15 @@ def create_video(content: dict, audio_path: str, job_id: str,
     # Fallback to simple slides if no scenes
     if not scenes:
         slides = script_to_slides(content["script"], content["seo_title"])
-        scenes = [{"text": s, "keyword": "technology artificial intelligence"} for s in slides]
+        scenes = [
+            {
+                "text": s,
+                "keyword": "data center" if i == 0 else "coding screen",
+                "alt_keyword": "server room" if i == 0 else "office desk",
+                "prompt": f"Cinematic stock footage background matching: {s[:120]}",
+            }
+            for i, s in enumerate(slides)
+        ]
 
     # 3. Word-count proportional timing to sync text precisely to audio
     total_words = sum(max(1, len(str(scene.get("text", "")).split())) for scene in scenes)
@@ -368,13 +637,19 @@ def create_video(content: dict, audio_path: str, job_id: str,
     except Exception:
         bg_path = ""
 
+    avatar_path = create_presenter_avatar(
+        job_id,
+        topic=content.get("chosen_topic", content.get("seo_title", "AI host")),
+        is_shorts=is_shorts,
+    )
+
     # 4. Build each scene as a video clip
     clip_files = []
     temp_files = []
 
     for i, scene in enumerate(scenes):
         scene_text = scene.get("text", "")
-        keyword = scene.get("keyword", "technology")
+        keyword = scene.get("keyword", "data center")
         is_title_slide = (i == 0)
         
         # Exact proportional clip duration
@@ -393,7 +668,8 @@ def create_video(content: dict, audio_path: str, job_id: str,
             # Overlay text on Pexels clip
             ok = create_text_overlay_clip(
                 pexels_path, scene_text, clip_duration, clip_out, w, h,
-                is_title=is_title_slide
+                is_title=is_title_slide,
+                avatar_path=avatar_path,
             )
             if ok:
                 clip_files.append(clip_out)
@@ -422,11 +698,12 @@ def create_video(content: dict, audio_path: str, job_id: str,
             bg_color=scene_bg_color,
             w=w, h=h,
             is_title=is_title_slide,
-            bg_image_path=scene_bg if scene_bg else bg_path
+            bg_image_path=scene_bg if scene_bg else bg_path,
+            avatar_path="",
         )
         temp_files.append(img_path)
 
-        clip_ok = image_to_video_clip(img_path, clip_duration, clip_out, w, h)
+        clip_ok = image_to_video_clip(img_path, clip_duration, clip_out, w, h, avatar_path=avatar_path)
         if clip_ok:
             clip_files.append(clip_out)
             temp_files.append(clip_out)
@@ -521,15 +798,25 @@ def _cleanup_temp(files: list):
 def create_thumbnail(content: dict, job_id: str, bg_path: str = "") -> str:
     """Generate a high-quality, eye-catching thumbnail."""
     log.info("Creating thumbnail...")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     thumb_path = os.path.join(OUTPUT_DIR, f"{job_id}_thumbnail.jpg")
+    variant_seed = int(hashlib.sha256(
+        f"{job_id}:{content.get('chosen_topic', '')}:{content.get('thumbnail_text', '')}".encode("utf-8")
+    ).hexdigest()[:8], 16)
+    layout_variant = variant_seed % 5
+    accent_colors = [
+        (0, 220, 140),
+        (255, 80, 60),
+        (255, 210, 0),
+        (0, 190, 255),
+        (180, 90, 255),
+    ]
+    accent = accent_colors[(variant_seed // 5) % len(accent_colors)]
 
     if bg_path and os.path.exists(bg_path):
         img = Image.open(bg_path).resize((1280, 720)).convert("RGB")
     else:
-        # Use a themed palette color consistent with the video's job_id
-        palette_index = hash(job_id) % len(THEMED_PALETTES)
-        thumb_bg = THEMED_PALETTES[palette_index]["bg"]
-        img = Image.new("RGB", (1280, 720), thumb_bg)
+        img = _draw_tech_background(1280, 720, variant_seed, accent)
 
     # Add a subtle vignette instead of a heavy black block to preserve the AI background details
     overlay = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
@@ -550,52 +837,87 @@ def create_thumbnail(content: dict, job_id: str, bg_path: str = "") -> str:
         font_sub = font_main
         font_brand = font_main
 
-    # Main text
+    # Main text: rotate layout every job so thumbnails never feel templated.
     text = content.get("thumbnail_text", "AI REVOLUTION").upper()
-    lines = textwrap.wrap(text, width=15)
-    start_y = 120
+    lines = textwrap.wrap(text, width=13 if layout_variant in (1, 3) else 15)[:3]
+    if layout_variant == 0:
+        x_text, start_y, align = 70, 105, "left"
+    elif layout_variant == 1:
+        x_text, start_y, align = 1220, 110, "right"
+    elif layout_variant == 2:
+        x_text, start_y, align = 640, 90, "center"
+    elif layout_variant == 3:
+        x_text, start_y, align = 80, 320, "left"
+    else:
+        x_text, start_y, align = 640, 395, "center"
+
+    if layout_variant in (3, 4):
+        band = Image.new("RGBA", (1280, 210), (0, 0, 0, 150))
+        img = img.convert("RGBA")
+        img.paste(band, (0, start_y - 35), band)
+        img = img.convert("RGB")
+        draw = ImageDraw.Draw(img)
+
     for line in lines:
-        color = (255, 230, 0) if ("AI" in line or len(lines) == 1) else (255, 255, 255)
+        color = accent if ("AI" in line or len(lines) == 1) else (255, 255, 255)
+        bbox = draw.textbbox((0, 0), line, font=font_main)
+        line_w = bbox[2] - bbox[0]
+        if align == "right":
+            draw_x = x_text - line_w
+        elif align == "center":
+            draw_x = x_text - line_w // 2
+        else:
+            draw_x = x_text
         # Deep shadow layer
-        draw.text((70 + 8, start_y + 8), line, font=font_main, fill=(0, 0, 0, 180))
+        draw.text((draw_x + 8, start_y + 8), line, font=font_main, fill=(0, 0, 0, 180))
         # Stroke + Fill layer
         try:
-            draw.text((70, start_y), line, font=font_main, fill=color, stroke_width=6, stroke_fill=(0, 0, 0))
+            draw.text((draw_x, start_y), line, font=font_main, fill=color, stroke_width=6, stroke_fill=(0, 0, 0))
         except TypeError:
             # Fallback for old pillow
             for off_x in [-3,0,3]:
                 for off_y in [-3,0,3]:
-                    draw.text((70 + off_x, start_y + off_y), line, font=font_main, fill=(0,0,0))
-            draw.text((70, start_y), line, font=font_main, fill=color)
+                    draw.text((draw_x + off_x, start_y + off_y), line, font=font_main, fill=(0,0,0))
+            draw.text((draw_x, start_y), line, font=font_main, fill=color)
         start_y += 115
 
     # Hook line
     hook = content.get("hook_line", "")[:80]
     if hook:
-        wrapped_hook = textwrap.wrap(hook, width=45)[:2]
-        y_hook = start_y + 20
+        wrapped_hook = textwrap.wrap(hook, width=38 if align != "center" else 48)[:2]
+        y_hook = start_y + 18
         for hl in wrapped_hook:
+            bbox = draw.textbbox((0, 0), hl, font=font_sub)
+            hook_w = bbox[2] - bbox[0]
+            if align == "right":
+                hook_x = x_text - hook_w
+            elif align == "center":
+                hook_x = x_text - hook_w // 2
+            else:
+                hook_x = x_text
             # Black shadow + stroke for hook
-            draw.text((72, y_hook + 3), hl, font=font_sub, fill=(0, 0, 0))
+            draw.text((hook_x + 2, y_hook + 3), hl, font=font_sub, fill=(0, 0, 0))
             try:
-                draw.text((70, y_hook), hl, font=font_sub, fill=(200, 255, 255), stroke_width=3, stroke_fill=(0,0,0))
+                draw.text((hook_x, y_hook), hl, font=font_sub, fill=(220, 255, 255), stroke_width=3, stroke_fill=(0,0,0))
             except TypeError:
-                draw.text((70, y_hook), hl, font=font_sub, fill=(200, 255, 255))
+                draw.text((hook_x, y_hook), hl, font=font_sub, fill=(220, 255, 255))
             y_hook += 55
 
     # Brand border
-    draw.rectangle([8, 8, 1272, 712], outline=(0, 200, 100), width=7)
+    draw.rectangle([8, 8, 1272, 712], outline=accent, width=7)
 
     # Channel branding pill
     try:
-        pill_img = Image.new("RGBA", (260, 55), (0, 0, 0, 0))
+        pill_w, pill_h = 310, 55
+        pill_img = Image.new("RGBA", (pill_w, pill_h), (0, 0, 0, 0))
         pill_draw = ImageDraw.Draw(pill_img)
-        pill_draw.rounded_rectangle([0, 0, 259, 54], radius=27, fill=(255, 50, 50, 220))
+        pill_draw.rounded_rectangle([0, 0, pill_w - 1, pill_h - 1], radius=27, fill=(255, 50, 50, 220))
         img = img.convert("RGBA")
-        img.paste(pill_img, (1000, 655), pill_img)
+        pill_pos = (950, 655) if layout_variant in (0, 2, 3) else (20, 655)
+        img.paste(pill_img, pill_pos, pill_img)
         img = img.convert("RGB")
         draw = ImageDraw.Draw(img)
-        draw.text((1010, 668), "AI NEWS DAILY", font=font_brand, fill=(255, 255, 255))
+        draw.text((pill_pos[0] + 10, pill_pos[1] + 13), "AI NEWS DAILY", font=font_brand, fill=(255, 255, 255))
     except Exception:
         pass  # Older Pillow may not support rounded_rectangle
 

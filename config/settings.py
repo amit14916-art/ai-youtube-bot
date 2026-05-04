@@ -21,15 +21,15 @@ OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY") or ""
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or ""
 
 # ─── YOUTUBE DATA API v3 ─────────────────────────────────
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY") or "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s"
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY") or ""
 YOUTUBE_CLIENT_SECRETS_FILE = os.getenv("YOUTUBE_CLIENT_SECRETS_FILE") or "config/client_secrets.json"
 
 # ─── GOOGLE CUSTOM SEARCH API ────────────────────────────
-GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY") or "AIzaSyAe36ZHNKd6vV-vGeI4Qk3m-obdCN4mP7s"
-GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID") or "56147179e87e648f7"
+GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY") or ""
+GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID") or ""
 
 # ─── ELEVENLABS (Premium TTS) ────────────────────────────
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY") or "sk_b00fac47a3960642fbd00a014066d0a78b10cc681dcf4f74"
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY") or ""
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or "NFG5qt843uXKj4pFvR7C" # Host A (Adam)
 ELEVENLABS_VOICE_ID_2 = os.getenv("ELEVENLABS_VOICE_ID_2") or "G0yjIg3xY8gEJZkHpjVm" # Host B
 
@@ -52,7 +52,7 @@ USE_AI_VIDEO_BROLL = False
 
 # ─── STOCK FOOTAGE ───────────────────────────────────────
 # Pexels (primary) — free, high quality
-PEXELS_API_KEY = os.getenv("PEXELS_API_KEY") or "OZcJQVMuHqL63ZfWUPqNsSAjq8yDLiJnHJOZ3qSctirWKdL4ls53Co5N"
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY") or ""
 
 # Pixabay (secondary) — free, 3M+ videos, great variety
 # Get your free key at: https://pixabay.com/api/docs/

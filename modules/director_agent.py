@@ -16,12 +16,8 @@ log = logging.getLogger(__name__)
 # ── Semantic keyword pools for AI-topic scenes ──────────────────────────────
 # Used only in the NLP-based fallback if LLM Director fails.
 KEYWORD_POOLS = {
-    "ai|artificial intelligence|machine learning|neural network|deep learning": [
-        "robot", "network visualization", "coding screen",
-        "server room", "computer circuit"
-    ],
     "robot|automation|humanoid": [
-        "factory robot", "industrial automation", "humanoid robot"
+        "factory robot", "robot arm", "humanoid robot"
     ],
     "job|work|employ|career|worker": [
         "office desk", "business meeting", "typing laptop"
@@ -33,7 +29,7 @@ KEYWORD_POOLS = {
         "stock market", "finance graph", "bitcoin"
     ],
     "code|software|developer|program|app": [
-        "programmer coding", "software developer", "coding monitor"
+        "programmer coding", "developer laptop", "coding monitor"
     ],
     "future|innovation|technology|tech": [
         "city night", "innovation lab", "smart city"
@@ -57,22 +53,63 @@ KEYWORD_POOLS = {
         "student laptop", "university campus", "online learning"
     ],
     "self-driving|autonomous|car|vehicle|transport": [
-        "self driving", "autonomous vehicle", "highway aerial"
+        "self driving", "autonomous car", "highway aerial"
+    ],
+    "agent|workflow|assistant|chatbot|prompt": [
+        "typing laptop", "chat screen", "office desk"
+    ],
+    "youtube|video|shorts|creator|content|thumbnail|channel": [
+        "video editing", "camera setup", "creator desk"
+    ],
+    "email|inbox|calendar|schedule|meeting|productivity": [
+        "office desk", "calendar app", "business meeting"
+    ],
+    "spreadsheet|excel|dashboard|report|chart|sales": [
+        "data dashboard", "analytics graph", "finance graph"
+    ],
+    "cloud|server|api|database|deploy|infrastructure": [
+        "server room", "data center", "coding screen"
+    ],
+    "security|privacy|password|phishing|scam|hack": [
+        "hacker screen", "security camera", "server room"
+    ],
+    "phone|mobile|app|notification|social": [
+        "smartphone", "phone screen", "mobile app"
+    ],
+    "ai|artificial intelligence|machine learning|neural network|deep learning|llm|gpt|gemini|claude": [
+        "data center", "coding screen", "server room", "computer chip"
     ],
 }
 
 
+def _clean_keyword(keyword: str, fallback: str = "data center") -> str:
+    """Keep Pexels queries concrete and short enough to return relevant footage."""
+    keyword = re.sub(r"[^a-zA-Z0-9 ]+", " ", keyword or "").strip().lower()
+    keyword = re.sub(r"\s+", " ", keyword)
+    bad_words = {"ai", "artificial", "intelligence", "technology", "future", "innovation", "tech"}
+    words = [w for w in keyword.split() if w not in bad_words]
+    if not words:
+        return fallback
+    return " ".join(words[:2])
+
+
 def _nlp_keyword(text: str, topic: str) -> str:
     """Extract the best Pexels keyword from scene text using keyword pools."""
+    scene_text = text.lower()
+    for pattern, keywords in KEYWORD_POOLS.items():
+        if re.search(pattern, scene_text):
+            return _clean_keyword(random.choice(keywords))
+
     combined = (text + " " + topic).lower()
     for pattern, keywords in KEYWORD_POOLS.items():
         if re.search(pattern, combined):
-            return random.choice(keywords)
-    # Last resort: use topic's first meaningful word
-    topic_words = [w for w in topic.lower().split() if len(w) > 3]
+            return _clean_keyword(random.choice(keywords))
+
+    topic_words = [w for w in re.findall(r"[a-zA-Z0-9]+", topic.lower()) if len(w) > 3]
+    topic_words = [w for w in topic_words if w not in {"agentic", "world", "news", "video"}]
     if topic_words:
-        return f"{topic_words[0]} technology"
-    return "technology innovation"
+        return _clean_keyword(" ".join(topic_words[:2]))
+    return "data center"
 
 
 def generate_scene_data(topic: str, seo_title: str, script: str, is_shorts: bool) -> list[dict]:
@@ -99,6 +136,7 @@ def generate_scene_data(topic: str, seo_title: str, script: str, is_shorts: bool
     sys_prompt = """You are a PROFESSIONAL YouTube Video Director at a top media company.
 Your job: read a podcast script and break it into scenes for a faceless YouTube video.
 Each scene MUST have a hyper-specific stock footage keyword that VISUALLY MATCHES the dialogue.
+The video also has a presenter avatar, so your b-roll should show the exact object/action being discussed behind the presenter.
 
 === PEXELS SEARCH ENGINE LIMITATIONS (CRITICAL) ===
 The Pexels API strictly uses exact tag matching and FAILS COMPLETELY on phrases, sentences, or abstract ideas.
@@ -114,6 +152,9 @@ GOOD keywords (highly literal, maximum 1-2 words, concrete tangible objects):
   ✅ Script says "robots replacing factory workers" → keyword: "factory robot"
   ✅ Script says "self-driving cars on highways" → keyword: "autonomous car"
   ✅ Script says "LLMs generating code" → keyword: "coding screen"
+  ✅ Script says "AI agent handles emails" → keyword: "office desk"
+  ✅ Script says "YouTube automation" → keyword: "video editing"
+  ✅ Script says "business dashboard" → keyword: "data dashboard"
 
 RULES:
 1. MAXIMUM 2 WORDS STRICTLY. Never generate 3 or 4 words. Exactly 1 or 2 words.
@@ -121,6 +162,8 @@ RULES:
 3. NEVER use the words "AI", "artificial", "intelligence", or "technology".
 4. For intro scenes use: "data center" or "city night".
 5. For CTA/subscribe scenes use: "smartphone" or "thumbs up".
+6. Do NOT reuse the same keyword more than once unless the same visual action is literally repeated.
+7. Prefer real-world footage terms: people, desks, cameras, servers, phones, dashboards, robots, hospitals, cars, labs.
 
 === OUTPUT FORMAT ===
 Return a JSON object with a single key "scenes" containing an array.
@@ -141,7 +184,7 @@ Is Shorts Format: {is_shorts}
 Script to break into scenes:
 {script}
 
-Remember: assign a UNIQUE, SPECIFIC, VISUAL keyword to EACH scene. No generic keywords."""
+Remember: assign a UNIQUE, SPECIFIC, VISUAL keyword to EACH scene. No generic keywords. The keyword must match the exact sentence, not only the broad AI topic."""
 
     try:
         call_kwargs = dict(
@@ -213,6 +256,10 @@ Remember: assign a UNIQUE, SPECIFIC, VISUAL keyword to EACH scene. No generic ke
                 keyword = _nlp_keyword(text, topic)
             if not alt_keyword or alt_keyword.lower() in bad_kw or alt_keyword == keyword:
                 alt_keyword = _nlp_keyword(text + " alternate", topic)
+            keyword = _clean_keyword(keyword, _nlp_keyword(text, topic))
+            alt_keyword = _clean_keyword(alt_keyword, _nlp_keyword(text + " alternate", topic))
+            if alt_keyword == keyword:
+                alt_keyword = _clean_keyword(_nlp_keyword(text + " different visual", topic), "office desk")
             if not prompt:
                 prompt = f"Cinematic {keyword}, professional lighting, 4K"
 
@@ -249,8 +296,8 @@ def fallback_generate_scene_data(script: str, seo_title: str, topic: str = "") -
     lines = re.split(r'(Host [AB]:)', script)
     scenes = [{
         "text": seo_title.upper(),
-        "keyword": "data center servers",
-        "alt_keyword": "futuristic city night",
+        "keyword": "data center",
+        "alt_keyword": "city night",
         "prompt": f"Cinematic title screen, {seo_title}, dramatic lighting, 4k"
     }]
 
@@ -276,8 +323,8 @@ def fallback_generate_scene_data(script: str, seo_title: str, topic: str = "") -
 
     scenes.append({
         "text": "LIKE  •  SUBSCRIBE  •  AI NEWS DAILY",
-        "keyword": "thumbs up social media",
-        "alt_keyword": "smartphone notification subscribe",
+        "keyword": "thumbs up",
+        "alt_keyword": "smartphone",
         "prompt": "Cinematic YouTube subscribe end screen, glowing neon lights, 4K"
     })
     return scenes

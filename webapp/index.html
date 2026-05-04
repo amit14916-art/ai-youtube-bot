@@ -77,7 +77,7 @@
 <body class="flex min-h-screen">
 
         <!-- Sidebar -->
-        <aside class="w-72 bg-slate-900/50 backdrop-blur-xl border-r border-white/5 flex flex-col p-6">
+        <aside class="w-72 bg-slate-900/50 backdrop-blur-xl border-r border-white/5 flex flex-col p-6 fixed inset-y-0 left-0">
             <div class="mb-10 px-4">
                 <h1 class="text-2xl font-black gold-gradient tracking-tighter">AGENTIC AI</h1>
                 <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Automation Studio</p>
@@ -119,7 +119,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="ml-64 flex-1 p-8">
+    <main id="main-content" class="ml-72 flex-1 p-8">
         <!-- Header -->
         <header class="flex justify-between items-center mb-10">
             <div>
@@ -247,8 +247,10 @@
             const password = document.getElementById('login-pass').value;
 
             try {
-                const resp = await fetch(`${API_BASE}/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, {
-                    method: 'POST'
+                const resp = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
                 });
                 const data = await resp.json();
                 if (resp.ok) {
@@ -332,7 +334,7 @@
         }
 
         function renderJobs(jobs) {
-            const container = document.getElementById('recent-jobs');
+            const container = document.getElementById('jobs-container');
             if (jobs.length === 0) {
                 container.innerHTML = '<p class="text-slate-500 text-center py-10">No videos generated yet. Click the button above to start!</p>';
                 return;
@@ -372,25 +374,9 @@
                 const resp = await fetch(`${API_BASE}/jobs`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                if (resp.status === 401) return logout();
                 const jobs = await resp.json();
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <i class="ph ph-video-camera text-2xl text-slate-600"></i>
-                            </div>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="font-bold text-lg mb-1">${job.topic || 'New Video Project'}</h4>
-                            <p class="text-xs text-slate-500 flex items-center gap-2">
-                                <i class="ph ph-calendar"></i> ${new Date(job.created_at).toLocaleDateString()}
-                            </p>
-                        </div>
-                        <div>
-                            <span class="px-3 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold rounded-full border border-amber-500/20 uppercase">${job.status}</span>
-                        </div>
-                        <div class="flex gap-4 ml-8">
-                            ${job.youtube_url ? `<a href="${job.youtube_url}" target="_blank" class="text-amber-500"><i class="ph ph-link text-xl"></i></a>` : ''}
-                        </div>
-                    </div>
-                `).join('');
+                renderJobs(Array.isArray(jobs) ? jobs : []);
             } catch (err) { console.error(err); }
         }
 

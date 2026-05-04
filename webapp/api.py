@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from pydantic import BaseModel
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -21,7 +22,7 @@ from main import run_pipeline
 from config.settings import OUTPUT_DIR, YOUTUBE_API_KEY
 
 # ─── Auth Constants ───
-SECRET_KEY = "SUPER_SECRET_KEY_CHANGE_ME"
+SECRET_KEY = os.getenv("SECRET_KEY", "SUPER_SECRET_KEY_CHANGE_ME")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -94,15 +95,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 # ─── API Routes ───
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
 @app.post("/register")
-def register(email: str, password: str, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.email == email).first()
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == payload.email).first()
     if db_user: raise HTTPException(status_code=400, detail="Email already registered")
-    user = models.User(email=email, hashed_password=get_password_hash(password))
+    user = models.User(email=payload.email, hashed_password=get_password_hash(payload.password))
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"status": "User created", "email": email}
+    return {"status": "User created", "email": payload.email}
 
 @app.post("/token")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):

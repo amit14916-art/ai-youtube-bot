@@ -16,6 +16,20 @@ log = logging.getLogger(__name__)
 # Track which video IDs we've already used this run so every scene gets a DIFFERENT clip
 _used_video_ids: set = set()
 
+GENERIC_TERMS = {
+    "technology", "artificial", "intelligence", "future", "innovation",
+    "tech", "digital", "modern", "abstract", "generic"
+}
+
+
+def _clean_query(query: str) -> str:
+    """Keep stock searches concrete enough to avoid unrelated generic footage."""
+    words = [
+        w for w in "".join(c if c.isalnum() or c.isspace() else " " for c in (query or "").lower()).split()
+        if w not in GENERIC_TERMS
+    ]
+    return " ".join(words[:2]).strip()
+
 
 def _search_pexels(query: str, headers: dict, per_page: int = 30,
                    orientation: str = "") -> list:
@@ -50,6 +64,7 @@ def get_stock_video(
     orientation: str = "landscape",
     min_duration: int = 4,
     scene_index: int = -1,
+    job_id: str = "",
 ) -> str:
     """
     Search Pexels for a stock video clip and return its local path.
@@ -62,6 +77,8 @@ def get_stock_video(
         return ""
 
     headers = {"Authorization": PEXELS_API_KEY}
+    query = _clean_query(query) or "data center"
+    alt_query = _clean_query(alt_query)
     videos = []
 
     # ── 1. Primary query (with correct orientation) ─────────────────
@@ -75,22 +92,37 @@ def get_stock_video(
     # ── 3. First word of primary query (relax orientation) ──────────
     if not videos and len(query.split()) > 1:
         first_word = query.split()[0]
-        log.info(f"  Still empty, trying first word: '{first_word}'")
-        videos = _search_pexels(first_word, headers, orientation=orientation)
+        if first_word not in GENERIC_TERMS and len(first_word) > 3:
+            log.info(f"  Still empty, trying first word: '{first_word}'")
+            videos = _search_pexels(first_word, headers, orientation=orientation)
 
     # ── 4. Smart topic-based generic fallbacks ───────────────────────
     SMART_FALLBACKS = [
-        "office technology business",
-        "city timelapse aerial",
-        "computer screen closeup",
-        "people working together",
-        "abstract data visualization",
-        "futuristic city lights",
-        "scientist laboratory research",
-        "global network connections",
+        "data center",
+        "coding screen",
+        "server room",
+        "computer chip",
+        "robot arm",
+        "office desk",
+        "business meeting",
+        "stock market",
+        "medical scan",
+        "factory robot",
+        "city night",
+        "typing laptop",
+        "video editing",
+        "camera setup",
+        "creator desk",
+        "phone screen",
+        "mobile app",
+        "calendar app",
+        "hacker screen",
+        "security camera",
+        "developer laptop",
     ]
     if not videos:
-        fallback = random.choice(SMART_FALLBACKS)
+        seed = int(hashlib.sha256(f"{job_id}:{scene_index}:{query}".encode("utf-8")).hexdigest()[:8], 16)
+        fallback = SMART_FALLBACKS[seed % len(SMART_FALLBACKS)]
         log.info(f"  All specific searches failed, using smart fallback: '{fallback}'")
         videos = _search_pexels(fallback, headers, orientation=orientation)
 
@@ -110,8 +142,10 @@ def get_stock_video(
         # All clips used — reset for this query only
         fresh = valid
 
-    # Pick from top-8 to add variety, not always the same top result
-    chosen = random.choice(fresh[:8])
+    # Pick deterministically per job/scene from top clips: varied across jobs, stable within one render.
+    seed = int(hashlib.sha256(f"{job_id}:{scene_index}:{query}:{alt_query}".encode("utf-8")).hexdigest()[:8], 16)
+    pick_pool = fresh[:8]
+    chosen = pick_pool[seed % len(pick_pool)]
     _used_video_ids.add(chosen.get("id"))
 
     # ── Pick best resolution file ────────────────────────────────────
