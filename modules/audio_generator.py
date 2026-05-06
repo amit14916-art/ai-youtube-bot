@@ -8,6 +8,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
+from mutagen.mp3 import MP3
 
 from config.settings import (
     ELEVENLABS_API_KEY,
@@ -249,6 +250,7 @@ def generate_audio(script: str, job_id: str) -> str:
     # Parse dialogue
     dialogue_chunks = parse_podcast_script(script)
     chunk_files = []
+    chunk_timing = []
     
     # Try Configured Provider
     all_ok = True
@@ -267,13 +269,18 @@ def generate_audio(script: str, job_id: str) -> str:
             
         if ok:
             chunk_files.append(cp)
+            try:
+                duration = MP3(cp).info.length
+            except Exception:
+                duration = max(1.5, len(chunk["text"].split()) * 0.18)
+            chunk_timing.append({"text": chunk["text"], "duration": duration})
         else:
             all_ok = False
             break
     
     if all_ok:
         _stitch_mp3(chunk_files, output_path)
-        return output_path
+        return {"audio_path": output_path, "audio_chunk_timing": chunk_timing}
     else:
         # Fallback to Edge if it wasn't the primary choice
         if TTS_PROVIDER != "edge":
@@ -293,7 +300,7 @@ def generate_audio(script: str, job_id: str) -> str:
                     break
             if all_ok:
                 _stitch_mp3(chunk_files, output_path)
-                return output_path
+                return {"audio_path": output_path, "audio_chunk_timing": chunk_timing}
 
         # Worst Case: gTTS
         for f in chunk_files:
@@ -309,11 +316,16 @@ def generate_audio(script: str, job_id: str) -> str:
         cp = output_path.replace(".mp3", f"_chunk{i}.mp3")
         if tts_gtts(ct, cp):
             chunk_files.append(cp)
+            try:
+                duration = MP3(cp).info.length
+            except Exception:
+                duration = max(1.5, len(ct.split()) * 0.18)
+            chunk_timing.append({"text": ct, "duration": duration})
         else:
             log.warning(f"Skipping failed gTTS chunk {i}")
 
     _stitch_mp3(chunk_files, output_path)
-    return output_path
+    return {"audio_path": output_path, "audio_chunk_timing": chunk_timing}
 
 
 def _stitch_mp3(files: list[str], output: str):

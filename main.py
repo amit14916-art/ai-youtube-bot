@@ -126,8 +126,11 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
 
         # -- PHASE 2: AUDIO -------------------------------------
         from modules.audio_generator import generate_audio
-        audio_path = generate_audio(content["script"], job_id)
+        audio_result = generate_audio(content["script"], job_id)
+        audio_path = audio_result["audio_path"]
+        audio_chunk_timing = audio_result.get("audio_chunk_timing", [])
         result["audio_path"] = audio_path
+        result["audio_chunk_timing"] = audio_chunk_timing
 
         # -- PHASE 3: VIDEO (Long) ------------------------------
         from modules.video_creator import create_video, create_thumbnail
@@ -138,7 +141,7 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
             # Generate dedicated thumbnail background
             from modules.asset_generator import generate_ai_image
             thumb_bg = generate_ai_image(content.get("thumbnail_prompt", content["chosen_topic"]), job_id, 999) # 999 for thumb
-            video_path    = create_video(content, audio_path, job_id, is_shorts=False)
+            video_path    = create_video(content, audio_path, job_id, is_shorts=False, audio_chunk_timing=audio_chunk_timing)
             thumbnail_path = create_thumbnail(content, job_id, thumb_bg)
             result["video_path"]     = video_path
             result["thumbnail_path"] = thumbnail_path
@@ -146,7 +149,7 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
         # -- PHASE 4: VIDEO (Shorts) -----------------------------
         if not long_only:
             log.info("Generating Vertical Shorts version...")
-            shorts_path = create_video(content, audio_path, job_id, is_shorts=True)
+            shorts_path = create_video(content, audio_path, job_id, is_shorts=True, audio_chunk_timing=audio_chunk_timing)
             result["shorts_path"] = shorts_path
 
         # -- PHASE 5: UPLOAD -------------------------------------

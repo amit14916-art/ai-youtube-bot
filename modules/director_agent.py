@@ -86,7 +86,11 @@ def _clean_keyword(keyword: str, fallback: str = "data center") -> str:
     """Keep Pexels queries concrete and short enough to return relevant footage."""
     keyword = re.sub(r"[^a-zA-Z0-9 ]+", " ", keyword or "").strip().lower()
     keyword = re.sub(r"\s+", " ", keyword)
-    bad_words = {"ai", "artificial", "intelligence", "technology", "future", "innovation", "tech"}
+    bad_words = {
+        "ai", "artificial", "intelligence", "technology", "future", "innovation", "tech",
+        "machine", "learning", "neural", "deep", "openai", "google", "gemini",
+        "claude", "anthropic", "latest", "new", "trending", "top", "best", "guide", "how"
+    }
     words = [w for w in keyword.split() if w not in bad_words]
     if not words:
         return fallback
@@ -137,6 +141,7 @@ def generate_scene_data(topic: str, seo_title: str, script: str, is_shorts: bool
 Your job: read a podcast script and break it into scenes for a faceless YouTube video.
 Each scene MUST have a hyper-specific stock footage keyword that VISUALLY MATCHES the dialogue.
 The video also has a presenter avatar, so your b-roll should show the exact object/action being discussed behind the presenter.
+If the script refers to abstract AI concepts, choose a safe, literal object that conveys the meaning (example: "AI agent" -> "typing laptop", "deep learning" -> "server room", "automation" -> "factory robot").
 
 === PEXELS SEARCH ENGINE LIMITATIONS (CRITICAL) ===
 The Pexels API strictly uses exact tag matching and FAILS COMPLETELY on phrases, sentences, or abstract ideas.
@@ -160,10 +165,11 @@ RULES:
 1. MAXIMUM 2 WORDS STRICTLY. Never generate 3 or 4 words. Exactly 1 or 2 words.
 2. Must be a concrete, tangible noun and/or simple action. (e.g. "server room", "brain glowing", "typing laptop").
 3. NEVER use the words "AI", "artificial", "intelligence", or "technology".
-4. For intro scenes use: "data center" or "city night".
-5. For CTA/subscribe scenes use: "smartphone" or "thumbs up".
-6. Do NOT reuse the same keyword more than once unless the same visual action is literally repeated.
-7. Prefer real-world footage terms: people, desks, cameras, servers, phones, dashboards, robots, hospitals, cars, labs.
+4. If the concept is abstract or systemic, choose a simpler real-world visual object instead of a phrase.
+5. For intro scenes use: "data center" or "city night".
+6. For CTA/subscribe scenes use: "smartphone" or "thumbs up".
+7. Do NOT reuse the same keyword more than once unless the same visual action is literally repeated.
+8. Prefer real-world footage terms: people, desks, cameras, servers, phones, dashboards, robots, hospitals, cars, labs.
 
 === OUTPUT FORMAT ===
 Return a JSON object with a single key "scenes" containing an array.

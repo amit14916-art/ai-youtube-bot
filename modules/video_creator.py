@@ -7,6 +7,7 @@ Fast, memory-safe, no MoviePy crashes. Works reliably on GitHub Actions.
 
 import logging
 import os
+import re
 import subprocess
 import textwrap
 import random
@@ -27,6 +28,13 @@ from config.settings import (
 
 log = logging.getLogger(__name__)
 
+# Encoding quality tuning for better YouTube output
+FINAL_VIDEO_PRESET = "medium"
+FINAL_VIDEO_CRF = 20
+INTERMEDIATE_CLIP_PRESET = "fast"
+INTERMEDIATE_CLIP_CRF = 24
+FADE_DURATION = 0.55
+
 try:
     import imageio_ffmpeg
     detected_ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
@@ -42,7 +50,8 @@ except Exception:
 
 def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
                        is_title: bool = False, bg_image_path: str = "",
-                       show_branding: bool = True, avatar_path: str = "") -> str:
+                       show_branding: bool = True, avatar_path: str = "",
+                       paste_avatar: bool = True) -> str:
     """Render a single slide as a JPEG image using PIL."""
     if bg_image_path and os.path.exists(bg_image_path):
         try:
@@ -59,15 +68,15 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
         alpha = int(170 * (y / h))
         draw_ov.line([(0, y), (w, y)], fill=(0, 0, 0, alpha))
     img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-    if avatar_path:
+    if avatar_path and paste_avatar:
         img = _paste_presenter_avatar(img, avatar_path, w, h)
 
     draw = ImageDraw.Draw(img)
 
     # Font
     font_size = 90 if is_title else 68
-    if avatar_path and h <= w and not is_title:
-        font_size = 58
+    if avatar_path and h <= w:
+        font_size = 60 if is_title else 52
     small_size = 36
     try:
         font = ImageFont.truetype(FONT_PATH, font_size)
@@ -79,7 +88,7 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
     # Clean text
     clean = text.replace("Host A:", "").replace("Host B:", "").strip()
     wrap_w = 24 if is_title else 32
-    if avatar_path and h <= w and not is_title:
+    if avatar_path and h <= w:
         wrap_w = 24
     wrapped = textwrap.wrap(clean, width=wrap_w)[:5]
 
@@ -89,9 +98,9 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
     for line in wrapped:
         bbox = draw.textbbox((0, 0), line, font=font)
         lw = bbox[2] - bbox[0]
-        if avatar_path and h <= w and not is_title:
+        if avatar_path and h <= w:
             text_left = 45
-            text_right = w - int(w * 0.30)
+            text_right = w - int(w * 0.42)
             x = text_left + max(0, (text_right - text_left - lw) // 2)
         else:
             x = (w - lw) // 2
@@ -175,9 +184,9 @@ def get_pexels_clip_for_scene(keyword: str, job_id: str, index: int, is_shorts: 
 
 def _ffmpeg_text_x(width: int, has_avatar: bool, is_title: bool) -> str:
     """Return drawtext x expression, reserving space for presenter in landscape."""
-    if has_avatar and not is_title:
+    if has_avatar:
         left = int(width * 0.035)
-        area_w = int(width * 0.65)
+        area_w = int(width * 0.55)
         return f"{left}+({area_w}-text_w)/2"
     return "(w-text_w)/2"
 
@@ -209,7 +218,8 @@ def create_text_overlay_clip(
     h: int,
     is_title: bool = False,
     ffmpeg_path: str = None,
-    avatar_path: str = ""
+    avatar_path: str = "",
+    lower_third_text: str = ""
 ) -> bool:
     """
     Use FFmpeg to trim a video clip to 'duration' seconds and overlay text.
@@ -225,14 +235,14 @@ def create_text_overlay_clip(
     has_avatar = bool(avatar_path and os.path.exists(avatar_path))
 
     # Wrap text; leave room for the presenter face-cam on landscape videos.
-    wrap_chars = 26 if has_avatar and h <= w and not is_title else 38
+    wrap_chars = 24 if has_avatar and h <= w else 38
     wrapped = textwrap.wrap(clean_text, width=wrap_chars)[:4]
     joined = "\\n".join(wrapped)
 
     # Font settings
     font_size = 72 if is_title else 56
-    if has_avatar and h <= w and not is_title:
-        font_size = 50
+    if has_avatar and h <= w:
+        font_size = 54 if is_title else 46
     text_color = "yellow" if is_title else "white"
 
     # Try to find a font that exists
@@ -273,14 +283,30 @@ def create_text_overlay_clip(
         f":x=w-text_w-30:y=h-50"
         f":box=1:boxcolor=red@0.8:boxborderw=10"
     )
+    lower_third = ""
+    if lower_third_text:
+        safe_lower = lower_third_text.replace("\\", "/").replace("'", "").replace("%", "%%")
+        safe_lower = safe_lower.replace(":", "\\:").replace(",", "\\,")
+        lower_third = (
+            f"drawbox=x=0:y=h-100:w=w:h=100:color=black@0.45:t=fill,"
+            f"drawbox=x=20:y=h-90:w=8:h=60:color=yellow@0.92:t=fill,"
+            f"drawtext=text='{safe_lower}'{font_arg}"
+            f":fontsize=32:fontcolor=white:x=40:y=h-70:line_spacing=6"
+        )
     # Crop perfectly instead of squashing
+    fade_st = max(duration - FADE_DURATION, 0.05)
     scale_crop = f"scale='max({w},a*{h})':'max({h},{w}/a)',crop={w}:{h}"
     text_filter = f"{scale_crop},setsar=1,{shadow},{main_text},{branding},{subscribe_cta}"
+    if lower_third:
+        text_filter = f"{text_filter},{lower_third}"
+    text_filter = (
+        f"{text_filter},fade=t=in:st=0:d={FADE_DURATION},fade=t=out:st={fade_st}:d={FADE_DURATION}"
+    )
 
     if has_avatar:
-        avatar_w = 300 if h <= w else 330
-        avatar_x = f"main_w-overlay_w-{int(w * 0.035)}"
-        avatar_y = str(int(h * 0.12)) if h > w else f"main_h-overlay_h-{int(h * 0.12)}"
+        avatar_w = int(w * 0.34) if h <= w else int(w * 0.42)
+        avatar_x = f"main_w-overlay_w-{int(w * 0.025)}"
+        avatar_y = str(int(h * 0.10)) if h > w else f"(main_h-overlay_h)/2"
         full_filter = (
             f"[0:v]{text_filter}[base];"
             f"{_talking_avatar_filter('[1:v]', '[avatar]', avatar_w)};"
@@ -295,7 +321,7 @@ def create_text_overlay_clip(
             "-i", avatar_path,
             "-t", str(max(duration, 1.0)),
             "-filter_complex", full_filter,
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
+            "-c:v", "libx264", "-preset", INTERMEDIATE_CLIP_PRESET, "-crf", str(INTERMEDIATE_CLIP_CRF),
             "-an",
             "-r", str(VIDEO_FPS),
             "-pix_fmt", "yuv420p",
@@ -308,7 +334,7 @@ def create_text_overlay_clip(
             "-i", video_clip_path,
             "-t", str(max(duration, 1.0)),
             "-vf", text_filter,
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
+            "-c:v", "libx264", "-preset", INTERMEDIATE_CLIP_PRESET, "-crf", str(INTERMEDIATE_CLIP_CRF),
             "-an",  # No audio (we'll mix later)
             "-r", str(VIDEO_FPS),
             "-pix_fmt", "yuv420p",
@@ -327,17 +353,36 @@ def create_text_overlay_clip(
 # -----------------------------------------------------------------
 
 def image_to_video_clip(image_path: str, duration: float, output_path: str,
-                        w: int, h: int, avatar_path: str = "") -> bool:
+                        w: int, h: int, avatar_path: str = "",
+                        lower_third_text: str = "") -> bool:
     """Convert a PIL image into a short video clip using FFmpeg."""
     # Added slow zoom (Ken Burns) effect for a premium cinematic feel
-    base_filter = f"scale=8000:-1,zoompan=z='min(zoom+0.001,1.1)':d={int(duration*VIDEO_FPS)}:s={w}x{h}:fps={VIDEO_FPS},setsar=1"
+    base_filter = (
+        f"scale=8000:-1,zoompan=z='min(zoom+0.001,1.1)':d={int(duration*VIDEO_FPS)}:s={w}x{h}:fps={VIDEO_FPS},setsar=1"
+    )
+    fade_st = max(duration - FADE_DURATION, 0.05)
+    fade_filter = f"fade=t=in:st=0:d={FADE_DURATION},fade=t=out:st={fade_st}:d={FADE_DURATION}"
+    font_arg = ""
+    if FONT_PATH and os.path.exists(FONT_PATH):
+        font_path_clean = FONT_PATH.replace("\\", "/")
+        font_arg = f":fontfile='{font_path_clean}'"
+    lower_third = ""
+    if lower_third_text:
+        safe_lower = lower_third_text.replace("\\", "/").replace("'", "").replace("%", "%%")
+        safe_lower = safe_lower.replace(":", "\\:").replace(",", "\\,")
+        lower_third = (
+            f",drawbox=x=0:y=h-100:w=w:h=100:color=black@0.45:t=fill,"
+            f"drawbox=x=20:y=h-90:w=8:h=60:color=yellow@0.92:t=fill,"
+            f"drawtext=text='{safe_lower}'{font_arg}"
+            f":fontsize=32:fontcolor=white:x=40:y=h-70"
+        )
     has_avatar = bool(avatar_path and os.path.exists(avatar_path))
     if has_avatar:
-        avatar_w = 300 if h <= w else 330
-        avatar_x = f"main_w-overlay_w-{int(w * 0.035)}"
-        avatar_y = str(int(h * 0.12)) if h > w else f"main_h-overlay_h-{int(h * 0.12)}"
+        avatar_w = int(w * 0.34) if h <= w else int(w * 0.42)
+        avatar_x = f"main_w-overlay_w-{int(w * 0.025)}"
+        avatar_y = str(int(h * 0.10)) if h > w else f"(main_h-overlay_h)/2"
         full_filter = (
-            f"[0:v]{base_filter}[base];"
+            f"[0:v]{base_filter},{fade_filter}{lower_third}[base];"
             f"{_talking_avatar_filter('[1:v]', '[avatar]', avatar_w)};"
             f"[base][avatar]overlay=x={avatar_x}:y={avatar_y}:format=auto"
         )
@@ -350,7 +395,7 @@ def image_to_video_clip(image_path: str, duration: float, output_path: str,
             "-i", avatar_path,
             "-t", str(max(duration, 1.0)),
             "-filter_complex", full_filter,
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-c:v", "libx264", "-preset", INTERMEDIATE_CLIP_PRESET, "-crf", str(INTERMEDIATE_CLIP_CRF),
             "-pix_fmt", "yuv420p",
             "-an",
             output_path
@@ -361,8 +406,8 @@ def image_to_video_clip(image_path: str, duration: float, output_path: str,
             "-loop", "1",
             "-i", image_path,
             "-t", str(max(duration, 1.0)),
-            "-vf", base_filter,
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-vf", f"{base_filter},{fade_filter}{lower_third}",
+            "-c:v", "libx264", "-preset", INTERMEDIATE_CLIP_PRESET, "-crf", str(INTERMEDIATE_CLIP_CRF),
             "-pix_fmt", "yuv420p",
             "-an",
             output_path
@@ -559,7 +604,8 @@ def create_presenter_avatar(job_id: str, topic: str = "", is_shorts: bool = Fals
 
 
 def create_video(content: dict, audio_path: str, job_id: str,
-                 is_shorts: bool = False) -> str:
+                 is_shorts: bool = False,
+                 audio_chunk_timing: list[dict] | None = None) -> str:
     """
     Build MP4 video using:
     - Director Agent → scene plan with Pexels keywords
@@ -643,8 +689,11 @@ def create_video(content: dict, audio_path: str, job_id: str,
         is_shorts=is_shorts,
     )
 
+    scene_durations = _estimate_scene_durations(scenes, total_duration, audio_chunk_timing)
+
     # 4. Build each scene as a video clip
     clip_files = []
+    clip_durations = []
     temp_files = []
 
     for i, scene in enumerate(scenes):
@@ -652,9 +701,7 @@ def create_video(content: dict, audio_path: str, job_id: str,
         keyword = scene.get("keyword", "data center")
         is_title_slide = (i == 0)
         
-        # Exact proportional clip duration
-        words_in_scene = max(1, len(str(scene_text).split()))
-        clip_duration = max((words_in_scene / total_words) * total_duration, 2.0)
+        clip_duration = scene_durations[i]
 
         clip_out = os.path.join(OUTPUT_DIR, f"{job_id}_clip_{i:04d}.mp4")
 
@@ -667,16 +714,22 @@ def create_video(content: dict, audio_path: str, job_id: str,
         if pexels_path and os.path.exists(pexels_path):
             # Overlay text on Pexels clip
             ok = create_text_overlay_clip(
-                pexels_path, scene_text, clip_duration, clip_out, w, h,
+                pexels_path,
+                scene_text,
+                clip_duration,
+                clip_out,
+                w,
+                h,
                 is_title=is_title_slide,
                 avatar_path=avatar_path,
+                lower_third_text=f"{keyword} • AI NEWS DAILY",
             )
             if ok:
                 clip_files.append(clip_out)
+                clip_durations.append(clip_duration)
                 temp_files.append(clip_out)
                 continue
-            else:
-                log.warning(f"Text overlay failed for scene {i+1}, falling back to image slide")
+        log.warning(f"Text overlay failed for scene {i+1}, falling back to image slide")
 
         # Fallback: PIL image slide → video clip (Unique AI Background)
         try:
@@ -699,13 +752,23 @@ def create_video(content: dict, audio_path: str, job_id: str,
             w=w, h=h,
             is_title=is_title_slide,
             bg_image_path=scene_bg if scene_bg else bg_path,
-            avatar_path="",
+            avatar_path=avatar_path,
+            paste_avatar=False,
         )
         temp_files.append(img_path)
 
-        clip_ok = image_to_video_clip(img_path, clip_duration, clip_out, w, h, avatar_path=avatar_path)
+        clip_ok = image_to_video_clip(
+            img_path,
+            clip_duration,
+            clip_out,
+            w,
+            h,
+            avatar_path=avatar_path,
+            lower_third_text=f"{keyword} • AI NEWS DAILY",
+        )
         if clip_ok:
             clip_files.append(clip_out)
+            clip_durations.append(clip_duration)
             temp_files.append(clip_out)
         else:
             log.warning(f"Scene {i+1} clip creation failed, skipping")
@@ -725,13 +788,40 @@ def create_video(content: dict, audio_path: str, job_id: str,
     temp_files.append(concat_file)
 
     raw_video = os.path.join(OUTPUT_DIR, f"{job_id}_raw.mp4")
-    concat_cmd = [
-        FFMPEG_PATH, "-y",
-        "-f", "concat", "-safe", "0", "-i", concat_file,
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
-        "-pix_fmt", "yuv420p",
-        raw_video
-    ]
+    if len(clip_files) == 1:
+        concat_cmd = [
+            FFMPEG_PATH, "-y",
+            "-i", clip_files[0],
+            "-c:v", "libx264", "-preset", FINAL_VIDEO_PRESET, "-crf", str(FINAL_VIDEO_CRF),
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            raw_video
+        ]
+    else:
+        inputs = []
+        filter_parts = []
+        for idx, cp in enumerate(clip_files):
+            inputs.extend(["-i", cp])
+            filter_parts.append(f"[{idx}:v]setpts=PTS-STARTPTS[v{idx}];")
+
+        current_label = "[v0]"
+        for idx in range(1, len(clip_files)):
+            offset = max(sum(clip_durations[:idx]) - idx * FADE_DURATION, 0.05)
+            out_label = f"[xf{idx-1}]"
+            filter_parts.append(
+                f"{current_label}[v{idx}]xfade=transition=fade:duration={FADE_DURATION}:offset={offset}{out_label};"
+            )
+            current_label = out_label
+
+        filter_complex = "".join(filter_parts)
+        concat_cmd = [FFMPEG_PATH, "-y"] + inputs + [
+            "-filter_complex", filter_complex,
+            "-map", current_label,
+            "-c:v", "libx264", "-preset", FINAL_VIDEO_PRESET, "-crf", str(FINAL_VIDEO_CRF),
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            raw_video
+        ]
     result = subprocess.run(concat_cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
         log.error(f"Concat failed:\n{result.stderr[-2000:]}")
@@ -756,6 +846,7 @@ def create_video(content: dict, audio_path: str, job_id: str,
             "-map", "[aout]",
             "-c:v", "copy",
             "-c:a", "aac", "-b:a", "128k",
+            "-movflags", "+faststart",
             "-shortest",
             "-t", str(int(total_duration) + 3),
             output_path
@@ -769,6 +860,7 @@ def create_video(content: dict, audio_path: str, job_id: str,
             "-map", "1:a",
             "-c:v", "copy",
             "-c:a", "aac", "-b:a", "128k",
+            "-movflags", "+faststart",
             "-shortest",
             "-t", str(int(total_duration) + 3),
             output_path
@@ -783,6 +875,35 @@ def create_video(content: dict, audio_path: str, job_id: str,
     log.info(f"✅ Video rendered: {output_path}")
     _cleanup_temp(temp_files)
     return output_path
+
+
+def _estimate_scene_durations(scenes: list, total_duration: float, audio_chunk_timing: list[dict] | None) -> list[float]:
+    """Estimate per-scene duration using audio timing and scene text relevance."""
+    if not scenes:
+        return []
+
+    scene_word_sets = [set(re.findall(r"\w+", str(scene.get("text", "")).lower())) for scene in scenes]
+    base_weights = [max(1, len(words)) for words in scene_word_sets]
+    scene_weights = [w * 0.08 for w in base_weights]
+
+    for chunk in audio_chunk_timing or []:
+        chunk_words = set(re.findall(r"\w+", str(chunk.get("text", "")).lower()))
+        duration = float(chunk.get("duration", 0) or 0)
+        if duration <= 0 or not chunk_words:
+            continue
+
+        overlaps = [len(ws & chunk_words) for ws in scene_word_sets]
+        total_overlap = sum(overlaps)
+        if total_overlap == 0:
+            continue
+
+        for idx, overlap in enumerate(overlaps):
+            scene_weights[idx] += duration * (overlap / total_overlap)
+
+    total_weight = sum(scene_weights) or len(scene_weights)
+    durations = [max((weight / total_weight) * total_duration, 2.0) for weight in scene_weights]
+    scale = total_duration / sum(durations)
+    return [d * scale for d in durations]
 
 
 def _cleanup_temp(files: list):
