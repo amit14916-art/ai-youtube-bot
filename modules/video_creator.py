@@ -217,17 +217,17 @@ def _ffmpeg_text_x(width: int, has_avatar: bool, is_title: bool) -> str:
 
 def _talking_avatar_filter(input_label: str, output_label: str, avatar_w: int) -> str:
     """FFmpeg filter that makes the presenter card visibly 'talk' with mouth motion."""
-    mouth_h = "if(lt(mod(t\\,0.36)\\,0.18)\\,ih*0.040\\,ih*0.014)"
+    # NOTE: expressions are in single-quoted FFmpeg args — plain commas work; no backslash needed.
+    mouth_h = "if(lt(mod(t,0.36),0.18),ih*0.040,ih*0.014)"
     return (
         f"{input_label}scale={avatar_w}:-1,format=rgba,"
         f"drawbox=x=iw*0.41:y=ih*0.585:w=iw*0.18:h='{mouth_h}':color=black@0.72:t=fill,"
         f"drawbox=x=iw*0.435:y=ih*0.605:w=iw*0.11:h='ih*0.006':color=white@0.55:t=fill,"
-        f"drawbox=x=iw*0.08:y=ih*0.91:w='if(lt(mod(t\\,0.50)\\,0.25)\\,iw*0.18\\,iw*0.08)':h=ih*0.012:color=white@0.72:t=fill,"
-        f"drawbox=x=iw*0.30:y=ih*0.91:w='if(lt(mod(t\\,0.42)\\,0.21)\\,iw*0.22\\,iw*0.10)':h=ih*0.012:color=white@0.72:t=fill,"
-        f"drawbox=x=iw*0.56:y=ih*0.91:w='if(lt(mod(t\\,0.58)\\,0.29)\\,iw*0.20\\,iw*0.07)':h=ih*0.012:color=white@0.72:t=fill"
+        f"drawbox=x=iw*0.08:y=ih*0.91:w='if(lt(mod(t,0.50),0.25),iw*0.18,iw*0.08)':h=ih*0.012:color=white@0.72:t=fill,"
+        f"drawbox=x=iw*0.30:y=ih*0.91:w='if(lt(mod(t,0.42),0.21),iw*0.22,iw*0.10)':h=ih*0.012:color=white@0.72:t=fill,"
+        f"drawbox=x=iw*0.56:y=ih*0.91:w='if(lt(mod(t,0.58),0.29),iw*0.20,iw*0.07)':h=ih*0.012:color=white@0.72:t=fill"
         f"{output_label}"
     )
-
 
 # -----------------------------------------------------------------
 #  OVERLAY TEXT ON VIDEO CLIP (FFmpeg drawtext)
