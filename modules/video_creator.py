@@ -28,6 +28,30 @@ from config.settings import (
 
 log = logging.getLogger(__name__)
 
+
+# -----------------------------------------------------------------
+#  MARKDOWN CLEANER — strips LLM formatting artifacts
+# -----------------------------------------------------------------
+
+def clean_markdown(text: str) -> str:
+    """
+    Remove markdown formatting that LLMs inject into titles/hooks.
+    e.g. **BUILD YOUR OWN ROBOT** → BUILD YOUR OWN ROBOT
+    """
+    if not text:
+        return text
+    # Remove bold/italic markers: **, *, __, _
+    text = re.sub(r'\*{1,3}', '', text)
+    text = re.sub(r'_{1,3}', '', text)
+    # Remove headers: ## Title → Title
+    text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+    # Remove backticks
+    text = text.replace('`', '')
+    # Collapse extra whitespace
+    text = re.sub(r'  +', ' ', text)
+    return text.strip()
+
+
 # Encoding quality tuning for better YouTube output
 FINAL_VIDEO_PRESET = "medium"
 FINAL_VIDEO_CRF = 20
@@ -85,8 +109,8 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
         font = ImageFont.load_default()
         small_font = font
 
-    # Clean text
-    clean = text.replace("Host A:", "").replace("Host B:", "").strip()
+    # Clean text — strip markdown AND host labels
+    clean = clean_markdown(text.replace("Host A:", "").replace("Host B:", "")).strip()
     wrap_w = 24 if is_title else 32
     if avatar_path and h <= w:
         wrap_w = 24
@@ -226,7 +250,7 @@ def create_text_overlay_clip(
     Returns True on success.
     """
     ffmpeg = ffmpeg_path or FFMPEG_PATH
-    clean_text = text.replace("Host A:", "").replace("Host B:", "").strip()
+    clean_text = clean_markdown(text).replace("Host A:", "").replace("Host B:", "").strip()
     # Escape special characters for FFmpeg drawtext filter parsing
     # Commas must be escaped with a backslash in filter strings
     clean_text = clean_text.replace("\\", "/").replace("'", "").replace("%", "%%")
@@ -959,7 +983,8 @@ def create_thumbnail(content: dict, job_id: str, bg_path: str = "") -> str:
         font_brand = font_main
 
     # Main text: rotate layout every job so thumbnails never feel templated.
-    text = content.get("thumbnail_text", "AI REVOLUTION").upper()
+    raw_text = content.get("thumbnail_text") or content.get("seo_title") or "AI REVOLUTION"
+    text = clean_markdown(raw_text).upper()
     lines = textwrap.wrap(text, width=13 if layout_variant in (1, 3) else 15)[:3]
     if layout_variant == 0:
         x_text, start_y, align = 70, 105, "left"
@@ -1003,7 +1028,7 @@ def create_thumbnail(content: dict, job_id: str, bg_path: str = "") -> str:
         start_y += 115
 
     # Hook line
-    hook = content.get("hook_line", "")[:80]
+    hook = clean_markdown(content.get("hook_line", ""))[:80]
     if hook:
         wrapped_hook = textwrap.wrap(hook, width=38 if align != "center" else 48)[:2]
         y_hook = start_y + 18

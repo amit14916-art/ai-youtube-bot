@@ -5,11 +5,11 @@ on:
     branches:
       - main
   schedule:
-    # IST Times  -> UTC  -> What runs
-    # 09:00 AM   -> 03:30 -> Long video
-    # 03:00 PM   -> 09:30 -> Long video
-    # 09:00 PM   -> 15:30 -> Long video
-    - cron: '30 3,9,15 * * *'   # Long video runs (IST 9am, 3pm, 9pm)
+    # 3x per week only — daily uploads get flagged as spam by YouTube algorithm
+    # IST 9:00 AM = UTC 3:30 AM, runs Mon / Wed / Fri
+    - cron: '30 3 * * 1'   # Monday    9:00 AM IST
+    - cron: '30 3 * * 3'   # Wednesday 9:00 AM IST
+    - cron: '30 3 * * 5'   # Friday    9:00 AM IST
   workflow_dispatch:
     inputs:
       topic:

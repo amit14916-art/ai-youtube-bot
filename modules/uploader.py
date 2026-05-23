@@ -25,6 +25,15 @@ SCOPES = [
 ]
 TOKEN_FILE = "config/token.json"
 
+# YouTube requires disclosure for AI-generated content (2024 policy)
+AI_DISCLOSURE = (
+    "\n\n─────────────────────────────\n"
+    "🤖 AI Content Disclosure\n"
+    "This video was created with the assistance of AI tools including AI-generated "
+    "voiceover, visuals, and script. Informational purposes only.\n"
+    "#AIGenerated #AIContent #FacelessYouTube #AINewsDaily"
+)
+
 
 # -----------------------------------------------------------------
 #  AUTHENTICATION
@@ -66,12 +75,15 @@ def upload_video(service, content: dict, video_path: str) -> str:
     """Upload video file. Returns YouTube video ID."""
     from googleapiclient.http import MediaFileUpload
 
-    tags = list(set(content.get("tags", []) + TAGS_EXTRA))[:30]
+    tags = list(set(content.get("tags", []) + TAGS_EXTRA + ["AIGenerated", "AIContent"]))[:30]
+
+    # Append mandatory AI disclosure to description (YouTube 2024 policy)
+    description = content["seo_description"] + AI_DISCLOSURE
 
     body = {
         "snippet": {
             "title": content["seo_title"],
-            "description": content["seo_description"],
+            "description": description,
             "tags": tags,
             "categoryId": CATEGORY_ID,
             "defaultLanguage": DEFAULT_LANGUAGE,
