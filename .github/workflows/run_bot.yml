@@ -16,11 +16,19 @@ on:
         description: 'Custom topic (leave empty for auto-research)'
         required: false
         default: ''
+      dry_run:
+        description: 'Dry run? true = generate video but skip YouTube upload'
+        required: false
+        default: 'false'
+      mode:
+        description: 'Mode: both / long_only / shorts_only'
+        required: false
+        default: 'both'
 
 jobs:
   build-and-run:
     runs-on: ubuntu-latest
-    timeout-minutes: 90        # Hard cap: kill job if it exceeds 90 mins total
+    timeout-minutes: 150
 
     steps:
       - name: Checkout Code
@@ -30,17 +38,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'          # Cache pip deps across runs for speed
-
+          cache: 'pip'
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y libfreetype6-dev libfontconfig1-dev libssl-dev > /dev/null
           sudo apt-get install -y ffmpeg fonts-liberation fonts-open-sans > /dev/null
-          # Verify drawtext filter is available
           ffmpeg -filters 2>/dev/null | grep drawtext && echo "✅ drawtext OK" || echo "⚠️ drawtext missing"
-
 
       - name: Install Python Dependencies
         run: |
@@ -50,10 +55,8 @@ jobs:
       - name: Write YouTube Token
         run: |
           mkdir -p config
-          # Write token safely (handles special chars in JSON)
           printf '%s' "$YOUTUBE_TOKEN_JSON" > config/token.json
-          # Validate that it's valid JSON
-          python -c "import json,sys; json.load(open('config/token.json'))" && echo "✅ token.json is valid JSON" || echo "⚠️ token.json may be invalid"
+          python -c "import json,sys; json.load(open('config/token.json'))" && echo "✅ token.json valid" || echo "⚠️ token.json invalid"
         env:
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
 
@@ -74,17 +77,17 @@ jobs:
                   creds.refresh(Request())
                   with open(TOKEN_FILE, "w") as f:
                       f.write(creds.to_json())
-                  print("✅ Token refreshed and saved!")
+                  print("✅ Token refreshed!")
               elif creds.valid:
-                  print("✅ Token is still valid.")
+                  print("✅ Token is valid.")
               else:
-                  print("⚠️ Token cannot be refreshed - no refresh_token!")
+                  print("⚠️ Token cannot be refreshed!")
           except Exception as e:
               print(f"❌ Token refresh failed: {e}")
           EOF
 
       - name: Run Bot
-        timeout-minutes: 85
+        timeout-minutes: 140
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -99,13 +102,32 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
           TOPIC_FLAG=""
+          DRY_FLAG=""
+          MODE_FLAG=""
+
           if [ -n "${{ github.event.inputs.topic }}" ]; then
             TOPIC_FLAG="--topic \"${{ github.event.inputs.topic }}\""
           fi
-          echo "Running Long video pipeline..."
-          python main.py --long-only $TOPIC_FLAG
 
-      - name: Upload Logs/Output
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_FLAG="--dry-run"
+            echo "🧪 DRY RUN — generating video without uploading"
+          fi
+
+          MODE="${{ github.event.inputs.mode }}"
+          if [ "$MODE" = "long_only" ]; then
+            MODE_FLAG="--long-only"
+            echo "📹 Long video only"
+          elif [ "$MODE" = "shorts_only" ]; then
+            MODE_FLAG="--shorts-only"
+            echo "📱 Shorts only"
+          else
+            echo "📹📱 Both Long + Shorts"
+          fi
+
+          eval python main.py $DRY_FLAG $MODE_FLAG $TOPIC_FLAG
+
+      - name: Upload Output Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -120,4 +142,4 @@ jobs:
           git config --global user.email "bot@youtube-ai.com"
           git add output/topic_history.json 2>/dev/null || true
           git commit -m "Auto-update topic history [skip ci]" 2>/dev/null || echo "No changes to commit"
-          git push origin main 2>/dev/null || echo "Push failed (likely no changes)"
+          git push origin main 2>/dev/null || echo "Push failed (no changes)"
