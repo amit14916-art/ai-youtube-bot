@@ -78,9 +78,9 @@ if not FONT_PATH:
         FONT_PATH = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 
 # ─── RESEARCH SETTINGS ───────────────────────────────────
-NICHE           = "AGENTIC AI WORLD"
-RESEARCH_TOPICS = 5          # Number of trending topics to research
-SCRIPT_WORDS    = 600        # ~4 min video — fits GitHub Actions 7GB RAM limit
+NICHE           = "artificial intelligence"   # YouTube search query (not channel name)
+RESEARCH_TOPICS = 8          # Number of trending topics to research
+SCRIPT_WORDS    = 1400       # ~8-10 min video — sweet spot for YouTube watch time
 
 # Google Trends geo (US, IN, GB, etc.)
 TRENDS_GEO = "US"
@@ -88,8 +88,13 @@ TRENDS_GEO = "US"
 # ─── YOUTUBE UPLOAD SETTINGS ─────────────────────────────
 CATEGORY_ID    = "28"        # 28 = Science & Technology
 PRIVACY_STATUS = "public"    # public | private | unlisted
-TAGS_EXTRA     = ["AI", "artificial intelligence", "tech", "2025", "ChatGPT",
-                   "machine learning", "deep learning", "future of AI"]
+TAGS_EXTRA     = [
+    "AI", "artificial intelligence", "AI tools 2025", "AI tutorial",
+    "AI explained", "machine learning", "deep learning", "ChatGPT",
+    "AI news", "future of AI", "AI automation", "AI for beginners",
+    "OpenAI", "Google AI", "AI technology", "AI trends",
+    "tech news", "AI productivity", "AI content creation", "AI agents",
+]
 DEFAULT_LANGUAGE = "en"
 
 # ─── SCHEDULE ────────────────────────────────────────────

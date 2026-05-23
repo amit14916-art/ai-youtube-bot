@@ -83,16 +83,16 @@ def get_google_trending_topics() -> list[str]:
         log.warning(f"Google Trends error: {e} — using dynamic fallback list")
         import random
         base = [
-            "GPT-5 release date leaks",
-            "AI agents replacing humans",
-            "Sora AI video update",
-            "Groq chip architecture",
-            "Anthropic Claude 4 news",
-            "Google Gemini 2.0 Pro",
-            "Open source Llama 4 rumors",
-            "Humanoid robots with AI",
-            "AI in healthcare 2025",
-            "Web3 and AI integration"
+            f"AI agents that automate your entire workflow in {datetime.now().year}",
+            "How to make money with AI tools (realistic income breakdown)",
+            "Best free AI tools most people don't know about",
+            "AI is replacing these jobs faster than anyone expected",
+            "How to use ChatGPT like a pro (advanced tricks)",
+            "Google's new AI model vs OpenAI — honest comparison",
+            "I built an AI business in 30 days — here's what happened",
+            "The AI tools that actually save time (tested for 30 days)",
+            "Why most AI tutorials are lying to you",
+            "How to automate your business with AI for free",
         ]
         random.shuffle(base)
         return base[:5]
@@ -217,63 +217,114 @@ def pick_best_topic_and_generate(
         data_context = f"TRENDING DATA:\n=== Google Trends ===\n{gt_topics}\n\n=== RSS Feed News ===\n{rss_str}\n\n=== Top YouTube Videos ===\n{yt_titles}"
 
     target_words = 180 if shorts_only else SCRIPT_WORDS
-    min_words = 150 if shorts_only else SCRIPT_WORDS  # Minimum acceptable word count
+    min_words = 150 if shorts_only else max(800, SCRIPT_WORDS - 200)
 
-    # Pre-compute all conditional strings — backslashes not allowed inside f-string {} in Python < 3.12
-    fmt_label = "60-second vertical Short (punchy, fast-paced, TikTok style)" if shorts_only else "long-form deep-dive podcast episode (10-15 min equivalent)"
-    req1 = "Write AT LEAST 150 words for the Short script." if shorts_only else f"Write AT LEAST {target_words} words for the podcast script. The script MUST be long and detailed."
-    req2 = "Use fast-paced, punchy sentences." if shorts_only else "Use Host A and Host B format alternating. Include 5 full sections: HOOK, DEEP DIVE, CONTROVERSY, FUTURE IMPACT, CTA."
-    req3 = "End with a clear Subscribe CTA." if shorts_only else "Each section must be at least 200 words. Do NOT cut the script short."
-    script_label = "60-second Short" if shorts_only else f"{target_words}-WORD PODCAST"
-    long_format = (
-        "Host A: [HOOK - 200+ words]\n\n"
-        "Host B: [DEEP DIVE - 200+ words]\n\n"
-        "Host A: [CONTROVERSY - 200+ words]\n\n"
-        "Host B: [FUTURE IMPACT - 200+ words]\n\n"
-        "Host A: [CTA - 100+ words]"
-    )
-    script_format = "Short script: hook + punchy content + Subscribe CTA." if shorts_only else long_format
+    from datetime import datetime as _dt
+    current_year = _dt.now().year
+    current_month = _dt.now().strftime("%B %Y")
 
-    prompt = f"""You are a TOP YouTube SEO strategist for an AI-focused channel targeting viral growth. Your job is to produce content that gets MAXIMUM clicks, watch time and subscribers.
+    fmt_label = "60-second vertical Short (punchy, TikTok style)" if shorts_only else f"long-form YouTube video (8-10 minutes) for {current_month}"
+    script_label = "Short" if shorts_only else "LONG-FORM"
 
-Format: {fmt_label}
-Target script words: {target_words} words MINIMUM. THIS IS CRITICAL - write a FULL, COMPLETE, DETAILED script.
+    prompt = f"""You are a WORLD-CLASS YouTube SEO strategist and scriptwriter. AI content that consistently hits 100K+ views.
+
+FORMAT: {fmt_label}
+TARGET SCRIPT LENGTH: {target_words} words minimum. Write EVERY word — do NOT truncate or summarize.
 
 {top_instruction}
 
 {data_context}
 
-CRITICAL SEO RULES:
-1. TITLE: 50-60 chars max. MUST be a highly searchable "How To", "Best [X]", or curiosity-driven tutorial title.
-2. DESCRIPTION: Deep SEO optimized. Two emotional hook sentences + 250-word keyword-rich summary explaining the "How to" steps or value + timestamps + minimum 15 hashtags.
-3. TAGS: Minimum 25 tags mixing broad, mid-tail, and long-tail (e.g., "how to use AI", "best AI tools 2025").
-4. THUMBNAIL TEXT: 2-3 MASSIVE BOLD WORDS that highlight practical value.
-5. HOOK: First 5 seconds = an urgent problem the viewer has, followed by the actionable solution you'll provide.
+═══ YOUTUBE SEO RULES ═══
 
-SCRIPT REQUIREMENTS (MOST IMPORTANT):
-- {req1}
-- {req2}
-- {req3}
-- MANDATORY: The first sentence MUST be an extremely powerful, curiosity-inducing HOOK (a shocking fact or question) that forces the viewer to watch until the end.
-- MANDATORY: Do NOT ask to like or subscribe at the beginning. 
-- MANDATORY: Do NOT say "Welcome to channel name" or use any placeholders like [Channel Name]. Start IMMEDIATELY with the Hook!
-- MANDATORY: The very end of the CTA MUST directly ask viewers to LIKE and SUBSCRIBE to the channel.
+TITLE (55-70 characters):
+- Include {current_year} OR a specific number
+- Use one of these proven patterns:
+  "I Tested [X] AI Tools — Here\'s What Actually Works ({current_year})"
+  "How to [Goal] with AI (Step-by-Step Guide)"
+  "[Number] AI Tools That Will [Benefit] in {current_year}"
+  "The Truth About [AI Topic] Nobody Is Talking About"
+- NEVER use vague words: amazing, incredible, revolutionary
+- NEVER use ALL CAPS in the title
 
-Respond ONLY in valid JSON (no text outside the JSON block):
+DESCRIPTION (350-500 words total):
+Line 1: Punchy hook sentence with a shocking number or bold claim
+Line 2: Second hook that teases what they will learn
+[blank line]
+200+ word body: keyword-rich, explains what viewers learn, mentions specific tools/companies naturally
+[blank line]
+Chapter timestamps:
+0:00 - Introduction
+1:30 - [Topic-specific section]
+3:00 - [Topic-specific section]
+5:00 - [Topic-specific section]
+7:00 - [Topic-specific section]
+8:30 - Final Thoughts & Subscribe
+[blank line]
+20 hashtags: mix of broad (#AI #MachineLearning) and specific (#AITools{current_year} #OpenAI)
+
+TAGS: 30 tags — 5 exact title keywords, 10 topic variations, 10 broad AI terms, 5 question-format (e.g. "how to use AI agents")
+
+THUMBNAIL TEXT:
+- Exactly 3-5 words, ALL CAPS, PLAIN TEXT ONLY
+- NO asterisks (**), NO markdown, NO bold markers whatsoever
+- Create extreme curiosity or show a shocking number
+- GOOD: "AI REPLACED MY JOB", "EARN 500 DAY AI", "GOOGLE LIED TO US"
+- BAD: "AI REVOLUTION 2025" (too vague), "**BUILD ROBOT**" (has asterisks)
+
+═══ SCRIPT RULES ═══
+
+Write Host A / Host B podcast format. They are knowledgeable, conversational co-hosts who:
+- Sometimes disagree, ask each other questions, react naturally
+- Use contractions and informal phrases: "Wait, really?", "That\'s wild", "Okay so here\'s the thing"
+- NEVER sound like news anchors or say corporate phrases
+
+SCRIPT STRUCTURE:
+Host A: [HOOK — 150+ words]
+Jump straight to a shocking statistic or controversial claim. NO welcome message, NO channel name.
+Example: "Okay so I just found out that 40% of companies are already replacing junior developers with AI..."
+
+Host B: [DEEP DIVE 1 — 200+ words]
+First major point. Include specific company names (OpenAI, Google DeepMind, Anthropic, Meta AI, etc.) and real numbers.
+
+Host A: [DEEP DIVE 2 — 200+ words]
+Second major point. Include a surprising counterargument.
+
+Host B: [PRACTICAL STEPS — 200+ words]
+Actionable steps listeners can take right now. Name specific free tools with actual features.
+
+Host A: [HOT TAKE — 150+ words]
+A bold controversial opinion that will generate comments. Something people want to debate.
+
+Host B: [FUTURE IMPACT — 150+ words]
+Specific prediction for 6-12 months from now.
+
+Host A: [CTA — 80+ words]
+Natural ask to like and subscribe. Connect it to the topic value.
+
+MANDATORY:
+- First sentence = shocking hook, zero pleasantries
+- At least 3 real company names
+- At least 2 statistics with source context
+- No placeholders: [Channel Name], [Link], [Insert Stat]
+- No markdown in script: no **, no *, no ## headers
+- Do NOT ask to like/subscribe at the start
+
+Respond ONLY with valid JSON. No text outside the JSON:
 
 {{
-  "chosen_topic": "The single best specific topic for today",
-  "reason": "One sentence: why this will go viral today",
-  "seo_title": "Power-word title 50-60 chars",
-  "seo_description": "Hook line 1.\nHook line 2.\n\n200-word keyword-rich summary.\n\n0:00 - Intro\n\n#AI #ArtificialIntelligence #TechNews",
-  "tags": ["AI", "artificial intelligence", "AI tools 2025", "AI automation", "future of AI", "ChatGPT", "AI jobs", "machine learning", "AI news today", "AI replacing jobs", "OpenAI", "Google AI", "AI technology", "AI for beginners", "AI trends 2025", "AI productivity", "tech news", "AI content creation", "AI tutorial", "AI explained"],
-  "thumbnail_text": "3-4 BOLD CAPS WORDS",
-  "thumbnail_prompt": "Hyper-realistic cinematic thumbnail background. Dramatic lighting, 8K quality.",
-  "hook_line": "ONE shocking opening sentence.",
-  "script": "WRITE THE FULL {script_label} SCRIPT HERE. DO NOT TRUNCATE. {script_format}"
+  "chosen_topic": "Specific detailed topic (not vague)",
+  "reason": "One sentence: why this gets clicks today",
+  "seo_title": "Compelling title 55-70 chars including {current_year} or a number",
+  "seo_description": "First hook sentence with a bold claim or number.\nSecond hook teasing what they will learn.\n\n[200+ word body paragraph. Write naturally, embed keywords. Mention tools, companies, specific benefits. Multiple paragraphs okay.]\n\n0:00 - Introduction\n1:30 - [Section]\n3:00 - [Section]\n5:00 - [Section]\n7:00 - [Section]\n8:30 - Subscribe & Resources\n\n#AI #ArtificialIntelligence #AITools #ChatGPT #MachineLearning #TechNews #AINews #FutureOfWork #AITutorial #OpenAI #GoogleAI #AIAutomation #AIForBeginners #TechTrends #{current_year} #DeepLearning #AIProductivity #AIAgents #DigitalTransformation #FutureOfAI",
+  "tags": ["exact topic keyword", "topic keyword variation", "how to use topic", "best topic tools", "topic tutorial", "AI", "artificial intelligence", "AI tools {current_year}", "AI tutorial", "AI explained", "machine learning", "ChatGPT tutorial", "AI news", "future of AI", "AI automation", "AI for beginners", "OpenAI news", "Google AI", "AI technology", "AI trends {current_year}", "tech news today", "AI productivity", "AI content creation", "AI agents", "how to use AI", "what is AI", "AI replacing jobs", "AI tools free", "best AI tools", "AI workflow"],
+  "thumbnail_text": "3-5 PLAIN CAPS WORDS NO SYMBOLS",
+  "thumbnail_prompt": "Cinematic 8K photorealistic thumbnail background. [Specific dramatic visual matching the topic]. Dark moody background, dramatic studio lighting, sharp focus, no text in image.",
+  "hook_line": "One shocking sentence without any markdown symbols",
+  "script": "[WRITE THE COMPLETE SCRIPT HERE following Host A/B format with all 7 sections. Minimum {target_words} words. Write every word of dialogue. Do not write section headers in brackets — just write the actual dialogue.]"
 }}
 
-THE SCRIPT FIELD MUST CONTAIN AT LEAST {min_words} WORDS. DO NOT add any text outside the JSON."""
+SCRIPT MUST BE {min_words}+ WORDS. DO NOT ADD ANY TEXT OUTSIDE THE JSON."""
 
     import json, re
 
