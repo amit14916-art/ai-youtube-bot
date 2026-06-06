@@ -116,8 +116,63 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
         wrap_w = 24
     wrapped = textwrap.wrap(clean, width=wrap_w)[:5]
 
+    # Calculate dimensions for the glassmorphism text card
+    max_lw = 0
+    for line in wrapped:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        lw = bbox[2] - bbox[0]
+        max_lw = max(max_lw, lw)
+
     total_h = len(wrapped) * (font_size + 15)
     y_pos = (h - total_h) // 2 if is_title else h - total_h - 130
+
+    # Determine accent color from background theme
+    accent = (0, 220, 160)  # Default cyan
+    for p in THEMED_PALETTES:
+        if p["bg"] == bg_color:
+            accents = {
+                "deep_red": (255, 80, 80),
+                "electric_blue": (0, 190, 255),
+                "forest_green": (0, 235, 150),
+                "rich_gold": (255, 210, 0),
+                "violet": (180, 90, 255),
+                "teal": (0, 220, 220),
+                "burnt_orange": (255, 120, 0),
+                "crimson": (255, 60, 120),
+                "dark_cyan": (0, 220, 255),
+                "indigo": (140, 90, 255),
+                "emerald": (0, 235, 120),
+                "dark_rose": (255, 80, 150)
+            }
+            accent = accents.get(p["name"], accent)
+            break
+
+    card_padding = 40
+    card_w = max_lw + card_padding * 2
+    card_h = total_h + card_padding * 2
+
+    if avatar_path and h <= w:
+        card_x0 = 45 - card_padding
+    else:
+        card_x0 = (w - card_w) // 2
+
+    card_y0 = y_pos - card_padding
+    card_x1 = card_x0 + card_w
+    card_y1 = card_y0 + card_h
+
+    # Draw translucent glass card with theme accent border
+    card_overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    card_draw = ImageDraw.Draw(card_overlay)
+    card_draw.rounded_rectangle(
+        [card_x0, card_y0, card_x1, card_y1],
+        radius=20,
+        fill=(0, 0, 0, 160),
+        outline=(*accent, 220),
+        width=3
+    )
+    img = Image.alpha_composite(img.convert("RGBA"), card_overlay).convert("RGB")
+    # Re-initialize draw object on composite image
+    draw = ImageDraw.Draw(img)
 
     for line in wrapped:
         bbox = draw.textbbox((0, 0), line, font=font)
@@ -128,10 +183,9 @@ def render_slide_image(text: str, bg_color: tuple, w: int, h: int,
             x = text_left + max(0, (text_right - text_left - lw) // 2)
         else:
             x = (w - lw) // 2
-        # Shadow
-        draw.text((x + 3, y_pos + 3), line, font=font, fill=(0, 0, 0, 200))
-        draw.text((x + 6, y_pos + 6), line, font=font, fill=(0, 0, 0, 100))
-        # Text
+        # Single offset shadow layer for crisp readability
+        draw.text((x + 3, y_pos + 3), line, font=font, fill=(0, 0, 0, 225))
+        # Text line
         color = (255, 215, 0) if is_title else (255, 255, 255)
         draw.text((x, y_pos), line, font=font, fill=color)
         y_pos += font_size + 15
@@ -222,7 +276,7 @@ def _talking_avatar_filter(input_label: str, output_label: str, avatar_w: int) -
     return (
         f"{input_label}scale={avatar_w}:-1,format=rgba,"
         f"drawbox=x=iw*0.41:y=ih*0.585:w=iw*0.18:h='{mouth_h}':color=black@0.72:t=fill,"
-        f"drawbox=x=iw*0.435:y=ih*0.605:w=iw*0.11:h='ih*0.006':color=white@0.55:t=fill,"
+        f"drawbox=x=iw*0.435:y=ih*0.605:w=iw*0.11:h=ih*0.006:color=white@0.55:t=fill,"
         f"drawbox=x=iw*0.08:y=ih*0.91:w='if(lt(mod(t,0.50),0.25),iw*0.18,iw*0.08)':h=ih*0.012:color=white@0.72:t=fill,"
         f"drawbox=x=iw*0.30:y=ih*0.91:w='if(lt(mod(t,0.42),0.21),iw*0.22,iw*0.10)':h=ih*0.012:color=white@0.72:t=fill,"
         f"drawbox=x=iw*0.56:y=ih*0.91:w='if(lt(mod(t,0.58),0.29),iw*0.20,iw*0.07)':h=ih*0.012:color=white@0.72:t=fill"
@@ -278,23 +332,19 @@ def create_text_overlay_clip(
                "C:/Windows/Fonts/arialbd.ttf"]:
         if fp and os.path.exists(fp):
             # Replace backslashes with forward slashes for FFmpeg filter parsing
-            fp_clean = fp.replace("\\", "/")
+            fp_clean = fp.replace("\\", "/").replace(":", "\\:")
             font_arg = f":fontfile='{fp_clean}'"
             break
 
     # Text position: center-bottom area
     text_y = "h-text_h-100" if not is_title else "(h-text_h)/2"
 
-    # Build drawtext filter with shadow
-    shadow = (
-        f"drawtext=text='{joined}'{font_arg}"
-        f":fontsize={font_size}:fontcolor=black@0.8"
-        f":x={_ffmpeg_text_x(w, has_avatar, is_title)}+3:y={text_y}+3:line_spacing=8"
-    )
+    # Build drawtext filter with glassmorphism card box
     main_text = (
         f"drawtext=text='{joined}'{font_arg}"
         f":fontsize={font_size}:fontcolor={text_color}@0.95"
         f":x={_ffmpeg_text_x(w, has_avatar, is_title)}:y={text_y}:line_spacing=8"
+        f":box=1:boxcolor=black@0.50:boxborderw=24"
     )
     branding = (
         f"drawtext=text='AI NEWS DAILY'{font_arg}"
@@ -312,15 +362,17 @@ def create_text_overlay_clip(
         safe_lower = lower_third_text.replace("\\", "/").replace("'", "").replace("%", "%%")
         safe_lower = safe_lower.replace(":", "\\:").replace(",", "\\,")
         lower_third = (
-            f"drawbox=x=0:y=h-100:w=w:h=100:color=black@0.45:t=fill,"
-            f"drawbox=x=20:y=h-90:w=8:h=60:color=yellow@0.92:t=fill,"
+            f"drawbox=x=0:y=ih-100:w=iw:h=100:color=black@0.45:t=fill,"
+            f"drawbox=x=20:y=ih-90:w=8:h=60:color=yellow@0.92:t=fill,"
             f"drawtext=text='{safe_lower}'{font_arg}"
             f":fontsize=32:fontcolor=white:x=40:y=h-70:line_spacing=6"
         )
     # Crop perfectly instead of squashing
     fade_st = max(duration - FADE_DURATION, 0.05)
     scale_crop = f"scale='max({w},a*{h})':'max({h},{w}/a)',crop={w}:{h}"
-    text_filter = f"{scale_crop},setsar=1,{shadow},{main_text},{branding},{subscribe_cta}"
+    # Apply cinematic color grading and vignetting to make free stock video look like custom premium CGI
+    cinematic = "eq=contrast=1.15:brightness=-0.04:saturation=1.18,vignette=angle=PI/4.8"
+    text_filter = f"{scale_crop},setsar=1,{cinematic},{main_text},{branding},{subscribe_cta}"
     if lower_third:
         text_filter = f"{text_filter},{lower_third}"
     text_filter = (
@@ -367,7 +419,7 @@ def create_text_overlay_clip(
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
-        log.warning(f"FFmpeg drawtext failed (scene): {result.stderr[-600:]}")
+        log.warning(f"FFmpeg drawtext failed (scene). Full stderr:\n{result.stderr}")
         return False
     return True
 
@@ -380,23 +432,20 @@ def image_to_video_clip(image_path: str, duration: float, output_path: str,
                         w: int, h: int, avatar_path: str = "",
                         lower_third_text: str = "") -> bool:
     """Convert a PIL image into a short video clip using FFmpeg."""
-    # Added slow zoom (Ken Burns) effect for a premium cinematic feel
-    base_filter = (
-        f"scale=8000:-1,zoompan=z='min(zoom+0.001,1.1)':d={int(duration*VIDEO_FPS)}:s={w}x{h}:fps={VIDEO_FPS},setsar=1"
-    )
+    base_filter = f"scale={w}:{h},setsar=1,format=yuv420p"
     fade_st = max(duration - FADE_DURATION, 0.05)
     fade_filter = f"fade=t=in:st=0:d={FADE_DURATION},fade=t=out:st={fade_st}:d={FADE_DURATION}"
     font_arg = ""
     if FONT_PATH and os.path.exists(FONT_PATH):
-        font_path_clean = FONT_PATH.replace("\\", "/")
+        font_path_clean = FONT_PATH.replace("\\", "/").replace(":", "\\:")
         font_arg = f":fontfile='{font_path_clean}'"
     lower_third = ""
     if lower_third_text:
         safe_lower = lower_third_text.replace("\\", "/").replace("'", "").replace("%", "%%")
         safe_lower = safe_lower.replace(":", "\\:").replace(",", "\\,")
         lower_third = (
-            f",drawbox=x=0:y=h-100:w=w:h=100:color=black@0.45:t=fill,"
-            f"drawbox=x=20:y=h-90:w=8:h=60:color=yellow@0.92:t=fill,"
+            f",drawbox=x=0:y=ih-100:w=iw:h=100:color=black@0.45:t=fill,"
+            f"drawbox=x=20:y=ih-90:w=8:h=60:color=yellow@0.92:t=fill,"
             f"drawtext=text='{safe_lower}'{font_arg}"
             f":fontsize=32:fontcolor=white:x=40:y=h-70"
         )
@@ -438,7 +487,7 @@ def image_to_video_clip(image_path: str, duration: float, output_path: str,
         ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if result.returncode != 0:
-        log.warning(f"image_to_video_clip failed: {result.stderr[-400:]}")
+        log.warning(f"image_to_video_clip failed. Full stderr:\n{result.stderr}")
         return False
     return True
 
@@ -565,20 +614,24 @@ def _paste_presenter_avatar(img: Image.Image, avatar_path: str, w: int, h: int) 
 
 
 def create_presenter_avatar(job_id: str, topic: str = "", is_shorts: bool = False) -> str:
-    """Create a synthetic AI presenter face-cam image for video overlays."""
+    """Create a persistent synthetic AI presenter face-cam image for video overlays."""
+    from config.settings import NICHE
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    avatar_path = os.path.join(OUTPUT_DIR, f"{job_id}_presenter.png")
+    niche_slug = NICHE.replace(" ", "_").replace("/", "_").lower()
+    avatar_path = os.path.join(OUTPUT_DIR, f"avatar_host_{niche_slug}_{'shorts' if is_shorts else 'long'}.png")
     if os.path.exists(avatar_path):
         return avatar_path
 
-    seed = int(hashlib.sha256(f"{job_id}:{topic}:presenter".encode("utf-8")).hexdigest()[:8], 16)
+    # Lock seed based purely on the NICHE to keep the AI Host character consistent across all videos
+    seed = int(hashlib.sha256(f"{NICHE}:presenter_host_v2".encode("utf-8")).hexdigest()[:8], 16)
     portrait = None
     try:
         import requests
         prompt = (
-            "synthetic AI news presenter, professional human face, shoulders visible, "
-            "looking at camera, studio lighting, dark tech newsroom background, "
-            "realistic but not a real person, high detail"
+            "clean minimal vector circle avatar icon of a futuristic friendly AI robot mascot, "
+            "cute digital robot face with glowing neon cyan robotic eyes, round shape, "
+            "tech blue and dark graphite background, flat design, high quality, "
+            "centered, premium design style"
         )
         url = (
             f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}"
@@ -604,17 +657,32 @@ def create_presenter_avatar(job_id: str, topic: str = "", is_shorts: bool = Fals
         portrait = portrait.resize((mask.width, mask.height), Image.LANCZOS).convert("RGBA")
         card.paste(portrait, (inner[0], inner[1]), mask)
     else:
-        # Local fallback: stylized host face, not a real identity.
-        face = Image.new("RGBA", (mask.width, mask.height), (14, 24, 36, 255))
+        # Local fallback: stylized simple robot avatar mascot.
+        face = Image.new("RGBA", (mask.width, mask.height), (14, 24, 38, 255))
         fd = ImageDraw.Draw(face, "RGBA")
-        cx, cy = mask.width // 2, int(mask.height * 0.42)
-        fd.ellipse([cx - 92, cy - 118, cx + 92, cy + 118], fill=(214, 174, 140, 255), outline=(*accent, 150), width=4)
-        fd.arc([cx - 88, cy - 126, cx + 88, cy + 58], 200, 340, fill=(28, 22, 20, 255), width=28)
-        fd.ellipse([cx - 50, cy - 22, cx - 26, cy + 2], fill=(20, 28, 34, 255))
-        fd.ellipse([cx + 26, cy - 22, cx + 50, cy + 2], fill=(20, 28, 34, 255))
-        fd.rounded_rectangle([cx - 34, cy + 62, cx + 34, cy + 78], radius=8, fill=(92, 24, 32, 255))
-        fd.polygon([(cx - 130, mask.height), (cx + 130, mask.height), (cx + 76, cy + 116), (cx - 76, cy + 116)], fill=(10, 18, 28, 255))
-        fd.line([(cx - 56, cy + 126), (cx, mask.height - 18), (cx + 56, cy + 126)], fill=(*accent, 220), width=5)
+        cx, cy = mask.width // 2, mask.height // 2 - 20
+        
+        # Antenna
+        fd.line([(cx, cy - 70), (cx, cy - 100)], fill=(*accent, 255), width=6)
+        fd.ellipse([cx - 12, cy - 112, cx + 12, cy - 88], fill=(255, 255, 255, 255), outline=accent, width=3)
+        
+        # Robot head body
+        fd.ellipse([cx - 80, cy - 80, cx + 80, cy + 80], fill=(20, 36, 54, 255), outline=accent, width=5)
+        
+        # Cybernetic glowing eyes
+        fd.ellipse([cx - 40, cy - 25, cx - 12, cy + 3], fill=(*accent, 255))
+        fd.ellipse([cx - 32, cy - 19, cx - 20, cy - 7], fill=(255, 255, 255, 255)) # Eye glint
+        
+        # Right eye
+        fd.ellipse([cx + 12, cy - 25, cx + 40, cy + 3], fill=(*accent, 255))
+        fd.ellipse([cx + 20, cy - 19, cx + 32, cy - 7], fill=(255, 255, 255, 255)) # Eye glint
+        
+        # Robotic mouth status line
+        fd.rounded_rectangle([cx - 25, cy + 28, cx + 25, cy + 38], radius=5, fill=(*accent, 255))
+        
+        # Subtle collar/shoulders below head
+        fd.polygon([(cx - 70, mask.height), (cx + 70, mask.height), (cx + 40, cy + 90), (cx - 40, cy + 90)], fill=(8, 16, 26, 255), outline=accent, width=2)
+        
         card.paste(face, (inner[0], inner[1]), mask)
 
     try:
@@ -665,18 +733,22 @@ def create_video(content: dict, audio_path: str, job_id: str,
     log.info(f"Audio duration: {total_duration:.1f}s")
 
     # 2. Director Agent — plan scenes
-    try:
-        from modules.director_agent import generate_scene_data
-        scenes = generate_scene_data(
-            content.get("chosen_topic", "AI"),
-            content.get("seo_title", "AI Video"),
-            content.get("script", ""),
-            is_shorts
-        )
-        log.info(f"Director planned {len(scenes)} scenes")
-    except Exception as e:
-        log.warning(f"Director agent failed ({e}), using slide fallback")
-        scenes = []
+    scenes = content.get("scenes", [])
+    if not scenes:
+        try:
+            from modules.director_agent import generate_scene_data
+            scenes = generate_scene_data(
+                content.get("chosen_topic", "AI"),
+                content.get("seo_title", "AI Video"),
+                content.get("script", ""),
+                is_shorts
+            )
+            log.info(f"Director planned {len(scenes)} scenes")
+        except Exception as e:
+            log.warning(f"Director agent failed ({e}), using slide fallback")
+            scenes = []
+    else:
+        log.info(f"Using pre-planned scenes from Multi-Agent Swarm ({len(scenes)} scenes)")
 
     # Fallback to simple slides if no scenes
     if not scenes:
@@ -763,9 +835,8 @@ def create_video(content: dict, audio_path: str, job_id: str,
         except Exception:
             scene_bg = ""
 
-        # Pick a palette: hash the job_id to get a consistent theme per video,
-        # then rotate hue slightly per-scene so consecutive slides feel varied.
-        palette_index = (hash(job_id) + i) % len(THEMED_PALETTES)
+        # Lock theme to 1 cohesive visual theme (electric_blue) to build a consistent channel brand
+        palette_index = 1  # electric_blue (Dark blue with cyan highlights)
         base_bg = THEMED_PALETTES[palette_index]["bg"]
         # Slightly brighten every other scene for contrast
         scene_bg_color = tuple(min(255, c + (10 if i % 2 == 0 else 0)) for c in base_bg)
@@ -822,28 +893,18 @@ def create_video(content: dict, audio_path: str, job_id: str,
             raw_video
         ]
     else:
-        inputs = []
-        filter_parts = []
-        for idx, cp in enumerate(clip_files):
-            inputs.extend(["-i", cp])
-            filter_parts.append(f"[{idx}:v]setpts=PTS-STARTPTS[v{idx}];")
-
-        current_label = "[v0]"
-        for idx in range(1, len(clip_files)):
-            offset = max(sum(clip_durations[:idx]) - idx * FADE_DURATION, 0.05)
-            out_label = f"[xf{idx-1}]"
-            filter_parts.append(
-                f"{current_label}[v{idx}]xfade=transition=fade:duration={FADE_DURATION}:offset={offset}{out_label};"
-            )
-            current_label = out_label
-
-        filter_complex = "".join(filter_parts)
-        concat_cmd = [FFMPEG_PATH, "-y"] + inputs + [
-            "-filter_complex", filter_complex,
-            "-map", current_label,
-            "-c:v", "libx264", "-preset", FINAL_VIDEO_PRESET, "-crf", str(FINAL_VIDEO_CRF),
-            "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
+        concat_file = os.path.join(OUTPUT_DIR, f"{job_id}_concat_list.txt")
+        with open(concat_file, "w") as f:
+            for cp in clip_files:
+                abs_path = os.path.abspath(cp).replace("\\", "/")
+                f.write(f"file '{abs_path}'\n")
+        temp_files.append(concat_file)
+        concat_cmd = [
+            FFMPEG_PATH, "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_file,
+            "-c", "copy",
             raw_video
         ]
     result = subprocess.run(concat_cmd, capture_output=True, text=True, timeout=300)

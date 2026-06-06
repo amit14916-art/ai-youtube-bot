@@ -97,6 +97,20 @@ TAGS_EXTRA     = [
 ]
 DEFAULT_LANGUAGE = "en"
 
+# ─── FACEBOOK UPLOAD SETTINGS ────────────────────────────
+ENABLE_FACEBOOK_UPLOAD  = (os.getenv("ENABLE_FACEBOOK_UPLOAD", "False").lower() == "true")
+FB_PAGE_ACCESS_TOKEN    = os.getenv("FB_PAGE_ACCESS_TOKEN", "")
+FB_PAGE_ID              = os.getenv("FB_PAGE_ID", "")
+
+# ─── INSTAGRAM UPLOAD SETTINGS ───────────────────────────
+ENABLE_INSTAGRAM_UPLOAD = (os.getenv("ENABLE_INSTAGRAM_UPLOAD", "False").lower() == "true")
+IG_USER_ID              = os.getenv("IG_USER_ID", "")
+
+# ─── LINKEDIN UPLOAD SETTINGS ────────────────────────────
+ENABLE_LINKEDIN_UPLOAD  = (os.getenv("ENABLE_LINKEDIN_UPLOAD", "False").lower() == "true")
+LINKEDIN_ACCESS_TOKEN   = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+LINKEDIN_OWNER_URN      = os.getenv("LINKEDIN_OWNER_URN", "") # e.g. urn:li:person:XXXX or urn:li:organization:XXXX
+
 # ─── SCHEDULE ────────────────────────────────────────────
 # Upload time daily (24-hr format, system local time)
 # 1st Video: 9:00 AM

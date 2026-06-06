@@ -472,20 +472,20 @@ SCRIPT MUST BE {min_words}+ WORDS. DO NOT ADD ANY TEXT OUTSIDE THE JSON."""
 
 def run_research(custom_topic: Optional[str] = None, shorts_only: bool = False) -> dict:
     """Full research pipeline. Returns content dict."""
-    log.info("=== Starting Research Phase ===")
+    log.info("=== Starting Research Phase (Multi-Agent Swarm Mode) ===")
     
-    if custom_topic:
-        log.info(f"Using custom topic: {custom_topic}")
-        # Still get some context for the custom topic
-        youtube_videos = get_youtube_trending_ai() # Or search specifically for topic
-        google_topics = [custom_topic]
-        rss_news = []
-    else:
-        google_topics  = get_google_trending_topics()
-        youtube_videos = get_youtube_trending_ai()
-        rss_news = get_rss_news()
-        
-    content = pick_best_topic_and_generate(
-        google_topics, youtube_videos, rss_news=rss_news, custom_topic=custom_topic, shorts_only=shorts_only
+    google_topics = []
+    if not custom_topic:
+        try:
+            google_topics = get_google_trending_topics()
+        except Exception as e:
+            log.warning(f"Failed to fetch trends: {e}")
+            
+    # Import and run our new Multi-Agent Orchestrator Swarm!
+    from modules.agent_orchestrator import run_multi_agent_swarm
+    content = run_multi_agent_swarm(
+        trends_data=google_topics,
+        custom_topic=custom_topic,
+        shorts_only=shorts_only
     )
     return content

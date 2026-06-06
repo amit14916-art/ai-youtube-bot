@@ -100,6 +100,14 @@ jobs:
           FAL_API_KEY: ${{ secrets.FAL_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          ENABLE_FACEBOOK_UPLOAD: ${{ secrets.ENABLE_FACEBOOK_UPLOAD }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          ENABLE_INSTAGRAM_UPLOAD: ${{ secrets.ENABLE_INSTAGRAM_UPLOAD }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          ENABLE_LINKEDIN_UPLOAD: ${{ secrets.ENABLE_LINKEDIN_UPLOAD }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_OWNER_URN: ${{ secrets.LINKEDIN_OWNER_URN }}
         run: |
           TOPIC_FLAG=""
           DRY_FLAG=""

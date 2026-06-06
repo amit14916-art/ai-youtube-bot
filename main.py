@@ -25,6 +25,14 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# Force UTF-8 encoding for standard output and error to prevent UnicodeEncodeError on Windows
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 import schedule
 
 from config.settings import (
@@ -154,20 +162,45 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
 
         # -- PHASE 5: UPLOAD -------------------------------------
         if dry_run:
-            log.info("DRY RUN — skipping YouTube upload")
+            log.info("DRY RUN — skipping multi-platform upload")
             result["status"] = "dry_run_complete"
             log.info(f"\n✅ Dry run complete! Files saved in: {OUTPUT_DIR}/")
         else:
             from modules.uploader import upload_to_youtube
+            from modules.facebook_uploader import upload_to_facebook
+            from modules.instagram_uploader import upload_to_instagram
+            from modules.linkedin_uploader import upload_to_linkedin
             from modules.notifier import send_whatsapp_notification
+            from config.settings import (
+                ENABLE_FACEBOOK_UPLOAD,
+                ENABLE_INSTAGRAM_UPLOAD,
+                ENABLE_LINKEDIN_UPLOAD,
+            )
             
             # Upload Long Video
             if not shorts_only:
                 if not video_path or not os.path.exists(video_path):
                     raise ValueError("Long video generation failed (missing video file).")
-                log.info("🚀 Uploading Long Video...")
+                
+                # YouTube
+                log.info("🚀 Uploading Long Video to YouTube...")
                 url = upload_to_youtube(content, video_path, thumbnail_path)
                 result["youtube_url"] = url
+                
+                # Facebook
+                if ENABLE_FACEBOOK_UPLOAD:
+                    log.info("🚀 Uploading Long Video to Facebook...")
+                    fb_url = upload_to_facebook(content, video_path, is_reels=False)
+                    if fb_url:
+                        result["facebook_url"] = fb_url
+
+                # LinkedIn
+                if ENABLE_LINKEDIN_UPLOAD:
+                    log.info("🚀 Uploading Long Video to LinkedIn...")
+                    li_url = upload_to_linkedin(content, video_path)
+                    if li_url:
+                        result["linkedin_url"] = li_url
+
                 # Send WhatsApp notification
                 send_whatsapp_notification(url, content["seo_title"])
             
@@ -175,12 +208,35 @@ def run_pipeline(dry_run: bool = False, shorts_only: bool = False, long_only: bo
             if not long_only:
                 if not shorts_path or not os.path.exists(shorts_path):
                     raise ValueError("Shorts video generation failed (missing short video file).")
-                log.info("🚀 Uploading Shorts Video...")
+                
+                # YouTube Shorts
+                log.info("🚀 Uploading Shorts Video to YouTube...")
                 content_shorts = content.copy()
                 content_shorts["seo_title"] = f"{content['seo_title'][:50]}... #shorts"
                 content_shorts["seo_description"] += "\n\n#shorts #ai #tech"
                 shorts_url = upload_to_youtube(content_shorts, shorts_path, "")
                 result["shorts_url"] = shorts_url
+
+                # Facebook Reels
+                if ENABLE_FACEBOOK_UPLOAD:
+                    log.info("🚀 Uploading Reels to Facebook...")
+                    fb_shorts_url = upload_to_facebook(content_shorts, shorts_path, is_reels=True)
+                    if fb_shorts_url:
+                        result["facebook_shorts_url"] = fb_shorts_url
+
+                # Instagram Reels
+                if ENABLE_INSTAGRAM_UPLOAD:
+                    log.info("🚀 Uploading Reels to Instagram...")
+                    ig_url = upload_to_instagram(content_shorts, shorts_path)
+                    if ig_url:
+                        result["instagram_url"] = ig_url
+
+                # LinkedIn Feed Video
+                if ENABLE_LINKEDIN_UPLOAD:
+                    log.info("🚀 Uploading Short Video to LinkedIn...")
+                    li_shorts_url = upload_to_linkedin(content_shorts, shorts_path)
+                    if li_shorts_url:
+                        result["linkedin_shorts_url"] = li_shorts_url
 
             result["status"] = "uploaded"
             log.info(f"\n🎉 SUCCESS!")

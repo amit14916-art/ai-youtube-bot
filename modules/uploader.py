@@ -52,12 +52,35 @@ def get_authenticated_service():
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+            except Exception as refresh_err:
+                log.error(f"Failed to refresh expired YouTube credentials: {refresh_err}")
+                creds = None
+
+        if not creds or not creds.valid:
+            import sys
+            # Check if running in a headless / non-interactive environment (CI, Docker, or no TTY)
+            is_headless = os.getenv("GITHUB_ACTIONS") == "true" or not sys.stdout.isatty()
+            if is_headless:
+                raise RuntimeError(
+                    "\n❌ YouTube OAuth token (config/token.json) is missing, expired, or invalid, "
+                    "and cannot be refreshed automatically in a headless CI/CD environment.\n"
+                    "🔧 RESOLUTION:\n"
+                    "  1. Run the bot locally once (python main.py) to authorize your channel.\n"
+                    "  2. Open the newly generated config/token.json file and copy its contents.\n"
+                    "  3. Add it as a GitHub Repository Secret named 'YOUTUBE_TOKEN_JSON' on GitHub.\n"
+                )
+
             flow = InstalledAppFlow.from_client_secrets_file(
                 YOUTUBE_CLIENT_SECRETS_FILE, SCOPES
             )
-            creds = flow.run_local_server(port=8080)
+            # Force offline access and consent prompt to guarantee a persistent refresh_token is always returned
+            creds = flow.run_local_server(
+                port=8080,
+                prompt="consent",
+                access_type="offline"
+            )
 
         with open(TOKEN_FILE, "w") as f:
             f.write(creds.to_json())
