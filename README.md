@@ -1,4 +1,8 @@
 # 🤖 AI Faceless YouTube Channel Automation Bot
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![Framework](https://img.shields.io/badge/framework-FastAPI-green.svg)
+![Automation](https://img.shields.io/badge/pipeline-GitHub%20Actions-orange.svg)
+![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)
 
 Fully automated pipeline that **researches trending AI topics → writes scripts → generates voiceover → builds faceless videos → uploads to YouTube daily.**
 
